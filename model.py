@@ -1,13 +1,17 @@
 import torch.nn as nn
 import torch
 import torch.nn.functional as F
+import modules
+import torchvision
+
+torchvision.models.resnet18()
 
 
 class PBLSTM(nn.Module):
     def __init__(self, input_size, hidden_size):
         super().__init__()
 
-        self.lstm = nn.LSTM(input_size, hidden_size, bidirectional=True, batch_first=True)  # TODO:
+        self.lstm = nn.LSTM(input_size, hidden_size, batch_first=True, bidirectional=True)  # TODO:
 
     def forward(self, input):
         if input.size(1) % 2 == 1:
@@ -19,7 +23,7 @@ class PBLSTM(nn.Module):
         return input, hidden
 
 
-class Encoder(nn.Module):
+class PyramidRNNEncoder(nn.Module):
     def __init__(self):
         super().__init__()
 
@@ -35,7 +39,33 @@ class Encoder(nn.Module):
         return input
 
 
-# TODO: shift targets
+class ConvRNNEncoder(nn.Module):
+    def __init__(self):
+        super().__init__()
+
+        self.conv = nn.Sequential(
+            modules.ConvNorm1d(80, 64, 7, stride=2, padding=3),  # TODO: stride 2?
+            nn.MaxPool1d(3, 2),
+            modules.ResidualBlockBasic1d(64, 64),
+            modules.ResidualBlockBasic1d(64, 64),
+
+            modules.ConvNorm1d(64, 128, 3, stride=2, padding=1),
+            modules.ResidualBlockBasic1d(128, 128),
+            modules.ResidualBlockBasic1d(128, 128),
+
+            modules.ConvNorm1d(128, 256, 3, stride=2, padding=1),
+            modules.ResidualBlockBasic1d(256, 256),
+            modules.ResidualBlockBasic1d(256, 256))
+
+        self.rnn = nn.GRU(256, 256, num_layers=1, batch_first=True, bidirectional=True)  # TODO: num layers
+
+    def forward(self, input):
+        input = input.permute(0, 2, 1)
+        input = self.conv(input)
+        input = input.permute(0, 2, 1)
+        input, _ = self.rnn(input)
+
+        return input
 
 
 class Attention(nn.Module):
@@ -92,7 +122,8 @@ class Model(nn.Module):
     def __init__(self, vocab_size):
         super().__init__()
 
-        self.encoder = Encoder()
+        # self.encoder = PyramidRNNEncoder()
+        self.encoder = ConvRNNEncoder()
         self.decoder = Decoder(vocab_size)
 
     def forward(self, spectras, seqs):
