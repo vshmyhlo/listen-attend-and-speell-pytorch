@@ -139,15 +139,15 @@ def main():
         for (spectras, spectras_mask), (labels, labels_mask) in tqdm(
                 train_data_loader, desc='epoch {} training'.format(epoch)):
             spectras, spectras_mask = spectras.to(device), spectras_mask.to(device)
-            labels, labels_mask = labels.to(device), labels_mask.to(device)
-            logits = model(spectras, labels[:, :-1])
-
-            loss = compute_loss(labels=labels[:, 1:], logits=logits, mask=labels_mask[:, 1:])
-            metrics['loss'].update(loss.data.cpu().numpy())
-
-            optimizer.zero_grad()
-            loss.mean().backward()
-            optimizer.step()
+            # labels, labels_mask = labels.to(device), labels_mask.to(device)
+            # logits = model(spectras, labels[:, :-1])
+            #
+            # loss = compute_loss(labels=labels[:, 1:], logits=logits, mask=labels_mask[:, 1:])
+            # metrics['loss'].update(loss.data.cpu().numpy())
+            #
+            # optimizer.zero_grad()
+            # loss.mean().backward()
+            # optimizer.step()
 
         train_writer.add_scalar('loss', metrics['loss'].compute_and_reset(), global_step=epoch)
         train_writer.add_scalar(
