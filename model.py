@@ -69,13 +69,13 @@ class Decoder(nn.Module):
         self.output = nn.Linear(size * 2, vocab_size)
 
     def forward(self, inputs, features):
-        embedding = self.embedding(inputs)
-        context = torch.zeros(embedding.size(0), embedding.size(2))
+        embeddings = self.embedding(inputs)
+        context = torch.zeros(embeddings.size(0), embeddings.size(2)).to(embeddings.device)
         hidden = None
         outputs = []
 
-        for t in range(embedding.size(1)):
-            inputs = torch.cat([embedding[:, t, :], context], 1)
+        for t in range(embeddings.size(1)):
+            inputs = torch.cat([embeddings[:, t, :], context], 1)
             hidden = self.rnn(inputs, hidden)
             output, _ = hidden
             context = self.attention(output, features)
