@@ -97,7 +97,7 @@ def main():
         num_workers=args.workers,
         collate_fn=collate_fn)
 
-    eval_dataset = TrainEvalDataset(args.dataset_path, subset='train-clean-100')  # TODO:
+    eval_dataset = TrainEvalDataset(args.dataset_path, subset='dev-clean')
     eval_data_loader = torch.utils.data.DataLoader(
         eval_dataset,
         batch_size=args.batch_size,
