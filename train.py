@@ -72,7 +72,7 @@ def build_parser():
     parser.add_argument('--restore-path', type=str)
     parser.add_argument('--dataset-path', type=str, default='./data')
     parser.add_argument('--lr', type=float, default=1e-3)
-    parser.add_argument('--opt', type=str, choices=['adam', 'momentum'], default='adam')
+    parser.add_argument('--opt', type=str, choices=['adam', 'momentum'], default='momentum')
     parser.add_argument('--batch-size', type=int, default=32)
     parser.add_argument('--epochs', type=int, default=500)
     parser.add_argument('--workers', type=int, default=os.cpu_count())
