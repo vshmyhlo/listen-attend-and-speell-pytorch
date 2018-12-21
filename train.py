@@ -17,16 +17,30 @@ from tqdm import tqdm
 from dataset import TrainEvalDataset
 from model import Model
 import torch.nn.functional as F
+from metrics import word_error_rate
 
 
 # TODO: pack padded seq for targets
+# TODO: min or max score scheduling
 
-def compute_score(labels, logits):
+def take_until_token(seq, token):
+    if token in seq:
+        return seq[:seq.index(token)]
+    else:
+        return seq
+
+
+def compute_score(labels, logits, vocab):
     true = labels.data.cpu().numpy()
-    pred = (logits > 0.).data.cpu().numpy()
-    score = sklearn.metrics.f1_score(y_true=true, y_pred=pred, average='macro')
+    logits = logits.data.cpu().numpy()
+    pred = np.argmax(logits, -1)
+    wers = [
+        word_error_rate(
+            ref=take_until_token(true.tolist(), vocab.eos_id),
+            hyp=take_until_token(pred.tolist(), vocab.eos_id))
+        for true, pred in zip(true, pred)]
 
-    return score
+    return wers
 
 
 def pad_and_pack(arrays):
@@ -129,7 +143,7 @@ def main():
     best_score = 0
 
     # metrics
-    metrics = {'loss': Mean()}
+    metrics = {'loss': Mean(), 'score': Mean()}
 
     for epoch in range(args.epochs):
         if epoch % 10 == 0:
@@ -159,9 +173,6 @@ def main():
 
         model.eval()
         with torch.no_grad():
-            all_labels = []
-            all_logits = []
-
             for (spectras, spectras_mask), (labels, labels_mask) in tqdm(
                     eval_data_loader, desc='epoch {} evaluating'.format(epoch)):
                 spectras, spectras_mask = spectras.to(device), spectras_mask.to(device)
@@ -171,14 +182,11 @@ def main():
                 loss = compute_loss(labels=labels[:, 1:], logits=logits, mask=labels_mask[:, 1:])
                 metrics['loss'].update(loss.data.cpu().numpy())
 
-                all_labels.append(labels)
-                all_logits.append(logits)
-
-            all_labels = torch.cat(all_labels, 0)
-            all_logits = torch.cat(all_logits, 0)
+                score = compute_score(labels=labels[:, 1:], logits=logits, vocab=train_dataset.vocab)
+                metrics['score'].update(score)
 
         eval_loss = metrics['loss'].compute_and_reset()
-        eval_score = compute_score(labels=all_labels, logits=all_logits)
+        eval_score = metrics['score'].compute_and_reset()
         eval_writer.add_scalar('loss', eval_loss, global_step=epoch)
         eval_writer.add_scalar('score', eval_score, global_step=epoch)
 
