@@ -65,9 +65,9 @@ class ConvRNNEncoder(nn.Module):
         input = input.permute(0, 2, 1)
         input = self.conv(input)
         input = input.permute(0, 2, 1)
-        input, _ = self.rnn(input)
+        input, last_hidden = self.rnn(input)
 
-        return input
+        return input, last_hidden
 
 
 # TODO: check this is valid
@@ -111,14 +111,18 @@ class Decoder(nn.Module):
         size = 256
 
         self.embedding = nn.Embedding(vocab_size, size, padding_idx=0)
+        # TODO: cell type
         self.rnn = nn.LSTMCell(size * 2, size)
         self.attention = Attention(size)
         self.output = nn.Linear(size * 2, vocab_size)
 
-    def forward(self, inputs, features):
+    def forward(self, inputs, features, last_hidden):
         embeddings = self.embedding(inputs)
+       
         # TODO: better init
-        context = torch.zeros(embeddings.size(0), embeddings.size(2)).to(embeddings.device)
+        # context = torch.zeros(embeddings.size(0), embeddings.size(2)).to(embeddings.device)
+        context = last_hidden.sum(0)
+
         hidden = None
         outputs = []
         weights = []
@@ -148,7 +152,7 @@ class Model(nn.Module):
         self.decoder = Decoder(vocab_size)
 
     def forward(self, spectras, seqs):
-        features = self.encoder(spectras)
-        logits, weights = self.decoder(seqs, features)
+        features, last_hidden = self.encoder(spectras)
+        logits, weights = self.decoder(seqs, features, last_hidden)
 
         return logits, weights
