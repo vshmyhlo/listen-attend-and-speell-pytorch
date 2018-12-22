@@ -196,8 +196,10 @@ def main():
                 labels[:, 1:][:4].detach().data.cpu().numpy(),
                 np.argmax(logits[:4].detach().data.cpu().numpy(), -1))):
             print('{}:'.format(i))
-            print(''.join(train_dataset.vocab.decode(take_until_token(true.tolist(), train_dataset.vocab.eos_id))))
-            print(''.join(train_dataset.vocab.decode(take_until_token(pred.tolist(), train_dataset.vocab.eos_id))))
+            print('TRUE:' + ''.join(
+                train_dataset.vocab.decode(take_until_token(true.tolist(), train_dataset.vocab.eos_id))))
+            print('PRED:' + ''.join(
+                train_dataset.vocab.decode(take_until_token(pred.tolist(), train_dataset.vocab.eos_id))))
 
         model.eval()
         with torch.no_grad(), Pool(args.workers) as pool:
