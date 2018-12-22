@@ -94,7 +94,7 @@ class Decoder(nn.Module):
 
         size = 256
 
-        self.embedding = nn.Embedding(vocab_size, size)
+        self.embedding = nn.Embedding(vocab_size, size, padding_idx=0)
         self.rnn = nn.LSTMCell(size * 2, size)
         self.attention = Attention(size)
         self.output = nn.Linear(size * 2, vocab_size)
