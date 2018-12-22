@@ -1,4 +1,5 @@
 import torch.utils.data
+from termcolor import colored
 from multiprocessing import Pool
 import torch.nn as nn
 from ticpfptp.torch import fix_seed, load_weights, save_model
@@ -196,10 +197,10 @@ def main():
                 labels[:, 1:][:4].detach().data.cpu().numpy(),
                 np.argmax(logits[:4].detach().data.cpu().numpy(), -1))):
             print('{}:'.format(i))
-            print('TRUE:' + ''.join(
-                train_dataset.vocab.decode(take_until_token(true.tolist(), train_dataset.vocab.eos_id))))
-            print('PRED:' + ''.join(
-                train_dataset.vocab.decode(take_until_token(pred.tolist(), train_dataset.vocab.eos_id))))
+            text = ''.join(train_dataset.vocab.decode(take_until_token(true.tolist(), train_dataset.vocab.eos_id)))
+            print(colored(text, 'green'))
+            text = ''.join(train_dataset.vocab.decode(take_until_token(pred.tolist(), train_dataset.vocab.eos_id)))
+            print(colored(text, 'yellow'))
 
         model.eval()
         with torch.no_grad(), Pool(args.workers) as pool:
