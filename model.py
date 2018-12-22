@@ -122,7 +122,7 @@ class Decoder(nn.Module):
         # TODO: better init
         # context = torch.zeros(embeddings.size(0), embeddings.size(2)).to(embeddings.device)
         # context = last_hidden.sum(0)
-        context, _ = self.attention(torch.zeros(inputs.size(0), self.rnn.hidden_size), features)
+        context, _ = self.attention(torch.zeros(inputs.size(0), self.rnn.hidden_size).to(inputs.device), features)
 
         hidden = None
         outputs = []
