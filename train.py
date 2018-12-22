@@ -129,7 +129,8 @@ def main():
         batch_size=args.bs,
         shuffle=True,
         num_workers=args.workers,
-        collate_fn=collate_fn)
+        collate_fn=collate_fn,
+        drop_last=True)
 
     eval_dataset = TrainEvalDataset(args.dataset_path, subset='dev-clean')
     eval_data_loader = torch.utils.data.DataLoader(
