@@ -182,7 +182,6 @@ def main():
             optimizer.zero_grad()
             loss.mean().backward()
             optimizer.step()
-            break
 
         train_writer.add_scalar('loss', metrics['loss'].compute_and_reset(), global_step=epoch)
         train_writer.add_scalar(
@@ -191,7 +190,6 @@ def main():
             global_step=epoch)
         # train_writer.add_image(
         #     'images', torchvision.utils.make_grid(images.sigmoid().cpu()), global_step=epoch)
-        # train_writer.add_audio()
 
         for i, (true, pred) in enumerate(zip(
                 labels[:, 1:][:4].detach().data.cpu().numpy(),
