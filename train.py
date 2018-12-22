@@ -176,6 +176,11 @@ def main():
         for (spectras, spectras_mask), (labels, labels_mask) in tqdm(
                 train_data_loader, desc='epoch {} training'.format(epoch)):
             spectras, spectras_mask = spectras.to(device), spectras_mask.to(device)
+
+            print(spectras.mean())
+            print(spectras.std())
+            fail
+
             labels, labels_mask = labels.to(device), labels_mask.to(device)
             logits = model(spectras, labels[:, :-1])
 
