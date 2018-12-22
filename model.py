@@ -5,7 +5,8 @@ import torch.nn.functional as F
 import modules
 import torchvision
 
-torchvision.models.resnet18()
+
+# todo mel scale ref
 
 
 class PBLSTM(nn.Module):
@@ -59,7 +60,8 @@ class ConvRNNEncoder(nn.Module):
             modules.ResidualBlockBasic1d(256, 256),
             modules.ResidualBlockBasic1d(256, 256))
 
-        self.rnn = nn.GRU(256, 256, num_layers=1, batch_first=True, bidirectional=True)  # TODO: num layers
+        self.rnn = nn.LSTM(256, 256, num_layers=1, batch_first=True, bidirectional=True)  # TODO: num layers
+        # self.rnn = nn.GRU(256, 256, num_layers=1, batch_first=True, bidirectional=True)  # TODO: num layers
 
     def forward(self, input):
         input = input.permute(0, 2, 1)
@@ -112,8 +114,8 @@ class Decoder(nn.Module):
 
         self.embedding = nn.Embedding(vocab_size, size, padding_idx=0)
         # TODO: cell type
-        # self.rnn = nn.LSTMCell(size * 2, size)
-        self.rnn = nn.GRUCell(size * 2, size)
+        self.rnn = nn.LSTMCell(size * 2, size)
+        # self.rnn = nn.GRUCell(size * 2, size)
         self.attention = Attention(size)
         self.output = nn.Linear(size * 2, vocab_size)
 
@@ -132,8 +134,8 @@ class Decoder(nn.Module):
         for t in range(embeddings.size(1)):
             inputs = torch.cat([embeddings[:, t, :], context], 1)
             hidden = self.rnn(inputs, hidden)
-            # output, _ = hidden
-            output = hidden
+            output, _ = hidden
+            # output = hidden
             context, weight = self.attention(output, features)
             output = torch.cat([output, context], 1)
             output = self.output(output)
