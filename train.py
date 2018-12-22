@@ -1,13 +1,9 @@
 import torch.utils.data
-# import augmentation
-import sklearn.metrics
-# import losses
+from multiprocessing import Pool
 import torch.nn as nn
-import torchvision
 from ticpfptp.torch import fix_seed, load_weights, save_model
 from ticpfptp.metrics import Mean
 from ticpfptp.format import args_to_string, args_to_path
-# import utils
 from tensorboardX import SummaryWriter
 import os
 import logging
@@ -22,6 +18,7 @@ from metrics import word_error_rate
 
 # TODO: pack padded seq for targets
 # TODO: min or max score scheduling
+# TODO: CER, WER, paralellize
 
 def take_until_token(seq, token):
     if token in seq:
@@ -30,15 +27,26 @@ def take_until_token(seq, token):
         return seq
 
 
-def compute_score(labels, logits, vocab):
+# def compute_score(labels, logits, vocab):
+#     true = labels.data.cpu().numpy()
+#     logits = logits.data.cpu().numpy()
+#     pred = np.argmax(logits, -1)
+#     wers = [
+#         word_error_rate(
+#             ref=take_until_token(true.tolist(), vocab.eos_id),
+#             hyp=take_until_token(pred.tolist(), vocab.eos_id))
+#         for true, pred in zip(true, pred)]
+#
+#     return wers
+
+def compute_score(labels, logits, vocab, pool):
     true = labels.data.cpu().numpy()
     logits = logits.data.cpu().numpy()
     pred = np.argmax(logits, -1)
-    wers = [
-        word_error_rate(
-            ref=take_until_token(true.tolist(), vocab.eos_id),
-            hyp=take_until_token(pred.tolist(), vocab.eos_id))
-        for true, pred in zip(true, pred)]
+
+    refs = [take_until_token(true.tolist(), vocab.eos_id) for true in true]
+    hyps = [take_until_token(pred.tolist(), vocab.eos_id) for pred in pred]
+    wers = pool.starmap(word_error_rate, zip(refs, hyps))
 
     return wers
 
@@ -72,7 +80,7 @@ def collate_fn(samples):
 
 
 def compute_loss(labels, logits, mask):
-    # TODO:
+    # TODO: sum over time or mean over time?
     labels = labels[mask]
     logits = logits[mask]
     loss = F.cross_entropy(input=logits, target=labels, reduction='none')
@@ -172,7 +180,7 @@ def main():
         #     'images', torchvision.utils.make_grid(images.sigmoid().cpu()), global_step=epoch)
 
         model.eval()
-        with torch.no_grad():
+        with torch.no_grad(), Pool(args.workers) as pool:
             for (spectras, spectras_mask), (labels, labels_mask) in tqdm(
                     eval_data_loader, desc='epoch {} evaluating'.format(epoch)):
                 spectras, spectras_mask = spectras.to(device), spectras_mask.to(device)
@@ -182,7 +190,7 @@ def main():
                 loss = compute_loss(labels=labels[:, 1:], logits=logits, mask=labels_mask[:, 1:])
                 metrics['loss'].update(loss.data.cpu().numpy())
 
-                score = compute_score(labels=labels[:, 1:], logits=logits, vocab=train_dataset.vocab)
+                score = compute_score(labels=labels[:, 1:], logits=logits, vocab=train_dataset.vocab, pool=pool)
                 metrics['score'].update(score)
 
         eval_loss = metrics['loss'].compute_and_reset()
