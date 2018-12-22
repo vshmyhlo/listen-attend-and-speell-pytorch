@@ -40,6 +40,10 @@ def take_until_token(seq, token):
 #
 #     return wers
 
+def chars_to_words(seq):
+    return ''.join(seq).split(' ')
+
+
 # TODO: check correct truncation
 def compute_score(labels, logits, vocab, pool):
     true = labels.data.cpu().numpy()
@@ -48,10 +52,13 @@ def compute_score(labels, logits, vocab, pool):
 
     refs = [take_until_token(true.tolist(), vocab.eos_id) for true in true]
     hyps = [take_until_token(pred.tolist(), vocab.eos_id) for pred in pred]
+    cers = pool.starmap(word_error_rate, zip(refs, hyps))
 
+    refs = map(chars_to_words, refs)
+    hyps = map(chars_to_words, hyps)
     wers = pool.starmap(word_error_rate, zip(refs, hyps))
 
-    return wers
+    return cers, wers
 
 
 def pad_and_pack(arrays):
@@ -155,7 +162,7 @@ def main():
     best_score = 0
 
     # metrics
-    metrics = {'loss': Mean(), 'score': Mean()}
+    metrics = {'loss': Mean(), 'cer': Mean(), 'wer': Mean()}
 
     for epoch in range(args.epochs):
         if epoch % 10 == 0:
@@ -194,13 +201,14 @@ def main():
                 loss = compute_loss(labels=labels[:, 1:], logits=logits, mask=labels_mask[:, 1:])
                 metrics['loss'].update(loss.data.cpu().numpy())
 
-                score = compute_score(labels=labels[:, 1:], logits=logits, vocab=train_dataset.vocab, pool=pool)
-                metrics['score'].update(score)
+                cer, wer = compute_score(labels=labels[:, 1:], logits=logits, vocab=train_dataset.vocab, pool=pool)
+                metrics['cer'].update(cer)
+                metrics['wer'].update(wer)
 
         eval_loss = metrics['loss'].compute_and_reset()
-        eval_score = metrics['score'].compute_and_reset()
+        # eval_score = metrics['score'].compute_and_reset()
         eval_writer.add_scalar('loss', eval_loss, global_step=epoch)
-        eval_writer.add_scalar('score', eval_score, global_step=epoch)
+        # eval_writer.add_scalar('score', eval_score, global_step=epoch)
 
         save_model(model_to_save, experiment_path)
         # utils.save_model(model_to_save, utils.mkdir(os.path.join(experiment_path, 'epoch_{}'.format(epoch))))
