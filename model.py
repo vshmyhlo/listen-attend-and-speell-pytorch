@@ -132,7 +132,8 @@ class Decoder(nn.Module):
         for t in range(embeddings.size(1)):
             inputs = torch.cat([embeddings[:, t, :], context], 1)
             hidden = self.rnn(inputs, hidden)
-            output, _ = hidden
+            # output, _ = hidden
+            output = hidden
             context, weight = self.attention(output, features)
             output = torch.cat([output, context], 1)
             output = self.output(output)
