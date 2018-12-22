@@ -212,6 +212,9 @@ def main():
         eval_writer.add_scalar('loss', eval_loss, global_step=epoch)
         # eval_writer.add_scalar('score', eval_score, global_step=epoch)
 
+        eval_writer.add_scalar('cer', metrics['cer'].compute_and_reset(), global_step=epoch)
+        eval_writer.add_scalar('wer', metrics['wer'].compute_and_reset(), global_step=epoch)
+
         save_model(model_to_save, experiment_path)
         # utils.save_model(model_to_save, utils.mkdir(os.path.join(experiment_path, 'epoch_{}'.format(epoch))))
         # if eval_score > best_score:
