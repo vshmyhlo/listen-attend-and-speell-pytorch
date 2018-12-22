@@ -7,6 +7,10 @@ VOCAB = [
     ' ', "'", 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U',
     'V', 'W', 'X', 'Y', 'Z']
 
+# TODO: use larger batch
+# TODO: specific to spectra
+MEAN, STD = -40.6916, 27.8401
+
 
 class Vocab(object):
     def __init__(self, vocab):
@@ -50,6 +54,7 @@ class TrainEvalDataset(torch.utils.data.Dataset):
         # spectra = librosa.feature.mfcc(sig, sr=rate, n_mfcc=80, n_fft=n_fft, hop_length=hop_length)
         spectra = librosa.feature.melspectrogram(sig, sr=rate, n_mels=80, n_fft=n_fft, hop_length=hop_length)
         spectra = librosa.power_to_db(spectra, ref=np.max)
+        spectra = (spectra - MEAN) / STD
 
         syms = [self.vocab.sos_id] + self.vocab.encode(syms) + [self.vocab.eos_id]
         syms = np.array(syms)

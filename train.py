@@ -12,7 +12,7 @@ import logging
 import numpy as np
 import argparse
 from tqdm import tqdm
-from dataset import TrainEvalDataset
+from dataset import TrainEvalDataset, MEAN, STD
 from model import Model
 import torch.nn.functional as F
 from metrics import word_error_rate
@@ -177,10 +177,6 @@ def main():
                 train_data_loader, desc='epoch {} training'.format(epoch)):
             spectras, spectras_mask = spectras.to(device), spectras_mask.to(device)
 
-            print(spectras.mean())
-            print(spectras.std())
-            fail
-
             labels, labels_mask = labels.to(device), labels_mask.to(device)
             logits = model(spectras, labels[:, :-1])
 
@@ -198,7 +194,7 @@ def main():
             global_step=epoch)
         train_writer.add_image(
             'spectras',
-            torchvision.utils.make_grid(spectras.permute(0, 2, 1).unsqueeze(1).cpu() / 80 + 1, nrow=1),
+            torchvision.utils.make_grid(spectras.permute(0, 2, 1).unsqueeze(1).cpu() * STD + MEAN, nrow=1),
             global_step=epoch)
 
         for i, (true, pred) in enumerate(zip(
