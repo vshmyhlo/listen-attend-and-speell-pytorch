@@ -181,6 +181,7 @@ def main():
             optimizer.zero_grad()
             loss.mean().backward()
             optimizer.step()
+            break
 
         train_writer.add_scalar('loss', metrics['loss'].compute_and_reset(), global_step=epoch)
         train_writer.add_scalar(
