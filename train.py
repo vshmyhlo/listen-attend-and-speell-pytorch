@@ -101,6 +101,26 @@ def compute_loss(labels, logits, mask):
     return loss
 
 
+# def compute_loss(labels, logits, mask):
+#     # TODO: sum over time or mean over time?
+#     # labels = labels[mask]
+#     # logits = logits[mask]
+#     print(labels.size())
+#     print(logits.size())
+#     print()
+#
+#     labels = labels.contiguous().view(labels.size(0) * labels.size(1))
+#     logits = logits.contiguous().view(logits.size(0) * logits.size(1), logits.size(2))
+#
+#     loss = F.cross_entropy(input=logits, target=labels, reduction='none')
+#     loss = loss *ma
+#
+#     print(loss.size())
+#
+#     fail
+#     return loss
+
+
 def build_parser():
     parser = argparse.ArgumentParser()
     parser.add_argument('--experiment-path', type=str, default='./tf_log')
@@ -178,7 +198,7 @@ def main():
             spectras, spectras_mask = spectras.to(device), spectras_mask.to(device)
 
             labels, labels_mask = labels.to(device), labels_mask.to(device)
-            logits = model(spectras, labels[:, :-1])
+            logits, weights = model(spectras, labels[:, :-1])
 
             loss = compute_loss(labels=labels[:, 1:], logits=logits, mask=labels_mask[:, 1:])
             metrics['loss'].update(loss.data.cpu().numpy())
@@ -194,6 +214,8 @@ def main():
             global_step=epoch)
         spectras_norm = (spectras.permute(0, 2, 1).unsqueeze(1).cpu() * STD + MEAN) / 80 + 1
         train_writer.add_image('spectras', torchvision.utils.make_grid(spectras_norm, nrow=1), global_step=epoch)
+        train_writer.add_image(
+            'weights', torchvision.utils.make_grid(weights.unsqueeze(1).cpu(), nrow=1), global_step=epoch)
 
         for i, (true, pred) in enumerate(zip(
                 labels[:, 1:][:4].detach().data.cpu().numpy(),
@@ -210,7 +232,7 @@ def main():
                     eval_data_loader, desc='epoch {} evaluating'.format(epoch)):
                 spectras, spectras_mask = spectras.to(device), spectras_mask.to(device)
                 labels, labels_mask = labels.to(device), labels_mask.to(device)
-                logits = model(spectras, labels[:, :-1])
+                logits, _ = model(spectras, labels[:, :-1])
 
                 loss = compute_loss(labels=labels[:, 1:], logits=logits, mask=labels_mask[:, 1:])
                 metrics['loss'].update(loss.data.cpu().numpy())

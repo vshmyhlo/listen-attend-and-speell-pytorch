@@ -44,8 +44,7 @@ class ConvRNNEncoder(nn.Module):
         super().__init__()
 
         self.conv = nn.Sequential(
-            modules.ConvNorm1d(80, 64, 7, stride=2, padding=3),  # TODO: stride 2?
-            # modules.ConvNorm1d(80, 64, 7, stride=1, padding=3),  # TODO: stride 1?
+            modules.ConvNorm1d(80, 64, 7, stride=2, padding=3),
             nn.MaxPool1d(3, 2),
             modules.ResidualBlockBasic1d(64, 64),
             modules.ResidualBlockBasic1d(64, 64),
@@ -85,7 +84,7 @@ class Attention(nn.Module):
         weights = scores.softmax(1)
         context = (values * weights).sum(1)
 
-        return context
+        return context, weights
 
 
 class Decoder(nn.Module):
@@ -104,19 +103,22 @@ class Decoder(nn.Module):
         context = torch.zeros(embeddings.size(0), embeddings.size(2)).to(embeddings.device)
         hidden = None
         outputs = []
+        weights = []
 
         for t in range(embeddings.size(1)):
             inputs = torch.cat([embeddings[:, t, :], context], 1)
             hidden = self.rnn(inputs, hidden)
             output, _ = hidden
-            context = self.attention(output, features)
+            context, weight = self.attention(output, features)
             output = torch.cat([output, context], 1)
             output = self.output(output)
             outputs.append(output)
+            weights.append(weight.squeeze(-1))
 
         outputs = torch.stack(outputs, 1)
+        weights = torch.stack(weights, 1)
 
-        return outputs
+        return outputs, weights
 
 
 class Model(nn.Module):
@@ -129,6 +131,6 @@ class Model(nn.Module):
 
     def forward(self, spectras, seqs):
         features = self.encoder(spectras)
-        logits = self.decoder(seqs, features)
+        logits, weights = self.decoder(seqs, features)
 
-        return logits
+        return logits, weights
