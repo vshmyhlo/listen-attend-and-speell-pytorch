@@ -1,4 +1,5 @@
 import torch.utils.data
+import torchvision
 from termcolor import colored
 from multiprocessing import Pool
 import torch.nn as nn
@@ -21,6 +22,7 @@ from metrics import word_error_rate
 # TODO: pack padded seq for targets
 # TODO: min or max score scheduling
 # TODO: CER, WER, paralellize
+# TODO: normalize spectras
 
 def take_until_token(seq, token):
     if token in seq:
@@ -189,8 +191,10 @@ def main():
             'learning_rate',
             np.squeeze([param_group['lr'] for param_group in optimizer.param_groups]),
             global_step=epoch)
-        # train_writer.add_image(
-        #     'images', torchvision.utils.make_grid(images.sigmoid().cpu()), global_step=epoch)
+        train_writer.add_image(
+            'spectras',
+            torchvision.utils.make_grid(spectras.permute(0, 2, 1).unsqueeze(1).cpu() / 80 + 1, nrow=1),
+            global_step=epoch)
 
         for i, (true, pred) in enumerate(zip(
                 labels[:, 1:][:4].detach().data.cpu().numpy(),
