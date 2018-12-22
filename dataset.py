@@ -46,11 +46,15 @@ class TrainEvalDataset(torch.utils.data.Dataset):
         sig, rate = librosa.core.load(path, sr=None)
         n_fft = check_and_round(0.025 / (1 / rate))  # TODO: refactor
         hop_length = check_and_round(0.01 / (1 / rate))  # TODO: refactor
-        mfcc = librosa.feature.mfcc(sig, sr=rate, n_mfcc=80, n_fft=n_fft, hop_length=hop_length)
+
+        # spectra = librosa.feature.mfcc(sig, sr=rate, n_mfcc=80, n_fft=n_fft, hop_length=hop_length)
+        spectra = librosa.feature.melspectrogram(sig, sr=rate, n_mels=80, n_fft=n_fft, hop_length=hop_length)
+        spectra = librosa.power_to_db(spectra, ref=np.max)
+
         syms = [self.vocab.sos_id] + self.vocab.encode(syms) + [self.vocab.eos_id]
         syms = np.array(syms)
 
-        return mfcc, syms
+        return spectra, syms
 
     def __len__(self):
         return len(self.data)
