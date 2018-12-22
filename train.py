@@ -194,7 +194,7 @@ def main():
 
         for i, (true, pred) in enumerate(zip(
                 labels[:, 1:][:4].detach().data.cpu().numpy(),
-                np.argmax(logits[:4].detach(), -1).data.cpu().numpy())):
+                np.argmax(logits[:4].detach().data.cpu().numpy(), -1))):
             print('{}:'.format(i))
             print(''.join(train_dataset.vocab.decode(take_until_token(true.tolist(), train_dataset.vocab.eos_id))))
             print(''.join(train_dataset.vocab.decode(take_until_token(pred.tolist(), train_dataset.vocab.eos_id))))
