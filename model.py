@@ -12,14 +12,14 @@ class PBLSTM(nn.Module):
     def __init__(self, input_size, hidden_size):
         super().__init__()
 
-        self.lstm = nn.LSTM(input_size, hidden_size, batch_first=True, bidirectional=True)  # TODO:
+        self.rnn = nn.LSTM(input_size, hidden_size, batch_first=True, bidirectional=True)  # TODO:
 
     def forward(self, input):
         if input.size(1) % 2 == 1:
             input = F.pad(input, (0, 0, 0, 1, 0, 0), mode='constant', value=0.)
 
         input = input.contiguous().view(input.size(0), input.size(1) // 2, input.size(2) * 2)
-        input, hidden = self.lstm(input)
+        input, hidden = self.rnn(input)
 
         return input, hidden
 
@@ -112,7 +112,8 @@ class Decoder(nn.Module):
 
         self.embedding = nn.Embedding(vocab_size, size, padding_idx=0)
         # TODO: cell type
-        self.rnn = nn.LSTMCell(size * 2, size)
+        # self.rnn = nn.LSTMCell(size * 2, size)
+        self.rnn = nn.GRUCell(size * 2, size)
         self.attention = Attention(size)
         self.output = nn.Linear(size * 2, vocab_size)
 
