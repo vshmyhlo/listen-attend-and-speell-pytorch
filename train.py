@@ -54,8 +54,8 @@ def compute_score(labels, logits, vocab, pool):
     hyps = [take_until_token(pred.tolist(), vocab.eos_id) for pred in pred]
     cers = pool.starmap(word_error_rate, zip(refs, hyps))
 
-    refs = map(chars_to_words, refs)
-    hyps = map(chars_to_words, hyps)
+    refs = map(lambda ref: chars_to_words(vocab.decode(ref)), refs)
+    hyps = map(lambda hyp: chars_to_words(vocab.decode(hyp)), hyps)
     wers = pool.starmap(word_error_rate, zip(refs, hyps))
 
     return cers, wers
@@ -181,6 +181,7 @@ def main():
             optimizer.zero_grad()
             loss.mean().backward()
             optimizer.step()
+            break
 
         train_writer.add_scalar('loss', metrics['loss'].compute_and_reset(), global_step=epoch)
         train_writer.add_scalar(
@@ -189,6 +190,7 @@ def main():
             global_step=epoch)
         # train_writer.add_image(
         #     'images', torchvision.utils.make_grid(images.sigmoid().cpu()), global_step=epoch)
+        # train_writer.add_audio()
 
         model.eval()
         with torch.no_grad(), Pool(args.workers) as pool:
