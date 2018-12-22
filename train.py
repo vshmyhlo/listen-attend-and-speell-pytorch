@@ -16,6 +16,7 @@ import torch.nn.functional as F
 from metrics import word_error_rate
 
 
+# TODO: log ignore keys
 # TODO: pack padded seq for targets
 # TODO: min or max score scheduling
 # TODO: CER, WER, paralellize
@@ -39,6 +40,7 @@ def take_until_token(seq, token):
 #
 #     return wers
 
+# TODO: check correct truncation
 def compute_score(labels, logits, vocab, pool):
     true = labels.data.cpu().numpy()
     logits = logits.data.cpu().numpy()
@@ -46,6 +48,7 @@ def compute_score(labels, logits, vocab, pool):
 
     refs = [take_until_token(true.tolist(), vocab.eos_id) for true in true]
     hyps = [take_until_token(pred.tolist(), vocab.eos_id) for pred in pred]
+
     wers = pool.starmap(word_error_rate, zip(refs, hyps))
 
     return wers
@@ -95,7 +98,7 @@ def build_parser():
     parser.add_argument('--dataset-path', type=str, default='./data')
     parser.add_argument('--lr', type=float, default=1e-3)
     parser.add_argument('--opt', type=str, choices=['adam', 'momentum'], default='momentum')
-    parser.add_argument('--batch-size', type=int, default=32)
+    parser.add_argument('--bs', type=int, default=32)
     parser.add_argument('--epochs', type=int, default=500)
     parser.add_argument('--workers', type=int, default=os.cpu_count())
     parser.add_argument('--sched', type=int, default=10)
@@ -108,13 +111,14 @@ def main():
     logging.basicConfig(level=logging.INFO)
     args = build_parser().parse_args()
     logging.info(args_to_string(args))
-    experiment_path = os.path.join(args.experiment_path, args_to_path(args))
+    experiment_path = os.path.join(args.experiment_path, args_to_path(
+        args, ignore=['experiment_path', 'restore_path', 'dataset_path', 'epochs', 'workers']))
     fix_seed(args.seed)
 
     train_dataset = TrainEvalDataset(args.dataset_path, subset='train-clean-100')
     train_data_loader = torch.utils.data.DataLoader(
         train_dataset,
-        batch_size=args.batch_size,
+        batch_size=args.bs,
         shuffle=True,
         num_workers=args.workers,
         collate_fn=collate_fn)
@@ -122,7 +126,7 @@ def main():
     eval_dataset = TrainEvalDataset(args.dataset_path, subset='dev-clean')
     eval_data_loader = torch.utils.data.DataLoader(
         eval_dataset,
-        batch_size=args.batch_size,
+        batch_size=args.bs,
         shuffle=False,
         num_workers=args.workers,
         collate_fn=collate_fn)
