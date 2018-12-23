@@ -10,7 +10,7 @@ train_data_loader = torch.utils.data.DataLoader(
     batch_size=32,
     shuffle=True,
     # num_workers=os.cpu_count(),
-    num_workers=4,
+    num_workers=1,
     collate_fn=collate_fn,
     drop_last=True)
 
