@@ -112,20 +112,8 @@ class ConvRNNEncoder(nn.Module):
 
 # TODO: check this is valid
 class Attention(nn.Module):
-    def __init__(self, size):
-        super().__init__()
-
-        # TODO: use bias or norm?
-        self.query = nn.Linear(size, size)
-
-        # nn.init.normal_(self.query.weight, 0, math.sqrt(2.0 / (size + size)))
-
-        nn.init.normal_(self.query.weight, 0, 0.01)
-
-        nn.init.constant_(self.query.bias, 0)
-
     def forward(self, input, features):
-        query = self.query(input).unsqueeze(-1)
+        query = input.unsqueeze(-1)
         keys = features
         values = features
 
