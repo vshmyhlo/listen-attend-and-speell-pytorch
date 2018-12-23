@@ -92,33 +92,25 @@ def collate_fn(samples):
     return (spectras, spectras_mask), (seqs, seqs_mask)
 
 
+# def compute_loss(labels, logits, mask):
+#     labels = labels[mask]
+#     logits = logits[mask]
+#     loss = F.cross_entropy(input=logits, target=labels, reduction='none')
+#
+#     return loss
+
+
 def compute_loss(labels, logits, mask):
-    # TODO: sum over time or mean over time?
-    labels = labels[mask]
-    logits = logits[mask]
+    b, t = labels.size()
+    labels = labels.contiguous().view(b * t)
+    logits = logits.contiguous().view(b * t, logits.size(2))
+
     loss = F.cross_entropy(input=logits, target=labels, reduction='none')
+    loss = loss.view(b, t)
+    loss = loss * mask.float()
+    loss = loss.sum(-1)
 
     return loss
-
-
-# def compute_loss(labels, logits, mask):
-#     # TODO: sum over time or mean over time?
-#     # labels = labels[mask]
-#     # logits = logits[mask]
-#     print(labels.size())
-#     print(logits.size())
-#     print()
-#
-#     labels = labels.contiguous().view(labels.size(0) * labels.size(1))
-#     logits = logits.contiguous().view(logits.size(0) * logits.size(1), logits.size(2))
-#
-#     loss = F.cross_entropy(input=logits, target=labels, reduction='none')
-#     loss = loss *ma
-#
-#     print(loss.size())
-#
-#     fail
-#     return loss
 
 
 def build_parser():

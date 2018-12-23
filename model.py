@@ -13,7 +13,7 @@ class PBLSTM(nn.Module):
     def __init__(self, input_size, hidden_size):
         super().__init__()
 
-        self.rnn = nn.LSTM(input_size, hidden_size, batch_first=True, bidirectional=True)  # TODO:
+        self.rnn = nn.LSTM(input_size, hidden_size, num_layers=1, batch_first=True, bidirectional=True)  # TODO:
 
     def forward(self, input):
         if input.size(1) % 2 == 1:
