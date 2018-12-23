@@ -55,10 +55,10 @@ class TrainEvalDataset(torch.utils.data.Dataset):
         hop_length = check_and_round(0.01 / (1 / rate))  # TODO: refactor
 
         # spectra = librosa.feature.mfcc(sig, sr=rate, n_mfcc=80, n_fft=n_fft, hop_length=hop_length)
-        t = time.time()
         spectra = librosa.feature.melspectrogram(sig, sr=rate, n_mels=80, n_fft=n_fft, hop_length=hop_length)
-        print(time.time() - t)
+        t = time.time()
         spectra = librosa.power_to_db(spectra, ref=np.max)
+        print(time.time() - t)
         spectra = (spectra - MEAN) / STD
 
         syms = [self.vocab.sos_id] + self.vocab.encode(syms) + [self.vocab.eos_id]
