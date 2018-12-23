@@ -48,8 +48,8 @@ class TrainEvalDataset(torch.utils.data.Dataset):
     def __getitem__(self, item):
         speaker, chapter, id, syms = self.data[item]
         path = os.path.join(self.path, self.subset, speaker, chapter, '{}.flac'.format(id))
-        sig, rate = librosa.core.load(path, sr=None)
-        # sig, rate = soundfile.read(path, dtype=np.float32)
+        # sig, rate = librosa.core.load(path, sr=None)
+        sig, rate = soundfile.read(path, dtype=np.float32)
         n_fft = check_and_round(0.025 / (1 / rate))  # TODO: refactor
         hop_length = check_and_round(0.01 / (1 / rate))  # TODO: refactor
 
