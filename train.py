@@ -107,7 +107,7 @@ def compute_loss(labels, logits, mask):
 #
 #     loss = F.cross_entropy(input=logits, target=labels, reduction='none')
 #     loss = loss.view(b, t)
-#     loss = (loss * mask).sum(-1)
+#     loss = (loss * mask).sum(-1) # TODO: mean?
 #
 #     return loss
 
