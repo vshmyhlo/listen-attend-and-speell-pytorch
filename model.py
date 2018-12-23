@@ -119,21 +119,21 @@ class Decoder(nn.Module):
         self.attention = Attention(size)
         self.output = nn.Linear(size * 2, vocab_size)
 
-    def forward(self, inputs, features):
-        embeddings = self.embedding(inputs)
+    def forward(self, input, features):
+        embeddings = self.embedding(input)
 
         # TODO: better init
-        # context = torch.zeros(embeddings.size(0), embeddings.size(2)).to(embeddings.device)
+        context = torch.zeros(embeddings.size(0), embeddings.size(2)).to(embeddings.device)
         # context = last_hidden.sum(0)
-        context, _ = self.attention(torch.zeros(inputs.size(0), self.rnn.hidden_size).to(inputs.device), features)
+        # context, _ = self.attention(torch.zeros(input.size(0), self.rnn.hidden_size).to(input.device), features)
 
         hidden = None
         outputs = []
         weights = []
 
         for t in range(embeddings.size(1)):
-            inputs = torch.cat([embeddings[:, t, :], context], 1)
-            hidden = self.rnn(inputs, hidden)
+            input = torch.cat([embeddings[:, t, :], context], 1)
+            hidden = self.rnn(input, hidden)
             output, _ = hidden
             # output = hidden
             context, weight = self.attention(output, features)
