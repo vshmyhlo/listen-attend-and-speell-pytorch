@@ -60,7 +60,7 @@ class ConvRNNEncoder(nn.Module):
             modules.ResidualBlockBasic1d(256, 256),
             modules.ResidualBlockBasic1d(256, 256))
 
-        self.rnn = nn.LSTM(256, 256, num_layers=1, batch_first=True, bidirectional=True)  # TODO: num layers
+        self.rnn = nn.LSTM(256, 256, num_layers=3, batch_first=True, bidirectional=True)  # TODO: num layers
         # self.rnn = nn.GRU(256, 256, num_layers=1, batch_first=True, bidirectional=True)  # TODO: num layers
 
     def forward(self, input):
