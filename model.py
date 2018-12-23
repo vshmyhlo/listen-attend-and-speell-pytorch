@@ -112,6 +112,9 @@ class ConvRNNEncoder(nn.Module):
 
 # TODO: check this is valid
 class Attention(nn.Module):
+    def __init__(self, _):
+        super().__init__()
+
     def forward(self, input, features):
         query = input.unsqueeze(-1)
         keys = features
