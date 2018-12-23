@@ -82,9 +82,9 @@ class Attention(nn.Module):
         self.key = nn.Linear(size * 2, size)
         self.value = nn.Linear(size * 2, size)
 
-        nn.init.normal_(self.query.weight, 0, 0.01)
-        nn.init.normal_(self.key.weight, 0, 0.01)
-        nn.init.normal_(self.value.weight, 0, 0.01)
+        nn.init.normal_(self.query.weight, 0, math.sqrt(2.0 / (size + size)))
+        nn.init.normal_(self.key.weight, 0, math.sqrt(2.0 / (size * 2 + size)))
+        nn.init.normal_(self.value.weight, 0, math.sqrt(2.0 / (size * 2 + size)))
 
         nn.init.constant_(self.query.bias, 0)
         nn.init.constant_(self.key.bias, 0)
