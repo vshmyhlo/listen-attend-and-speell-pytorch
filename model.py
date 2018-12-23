@@ -73,27 +73,60 @@ class ConvRNNEncoder(nn.Module):
 
 
 # TODO: check this is valid
+# class Attention(nn.Module):
+#     def __init__(self, size):
+#         super().__init__()
+#
+#         # TODO: use bias or norm?
+#         self.query = nn.Linear(size, size)
+#         self.key = nn.Linear(size * 2, size)
+#         self.value = nn.Linear(size * 2, size)
+#
+#         # nn.init.normal_(self.query.weight, 0, math.sqrt(2.0 / (size + size)))
+#         # nn.init.normal_(self.key.weight, 0, math.sqrt(2.0 / (size * 2 + size)))
+#         # nn.init.normal_(self.value.weight, 0, math.sqrt(2.0 / (size * 2 + size)))
+#
+#         nn.init.normal_(self.query.weight, 0, 0.01)
+#         nn.init.normal_(self.key.weight, 0, 0.01)
+#         nn.init.normal_(self.value.weight, 0, 0.01)
+#
+#         nn.init.constant_(self.query.bias, 0)
+#         nn.init.constant_(self.key.bias, 0)
+#         nn.init.constant_(self.value.bias, 0)
+#
+#     def forward(self, input, features):
+#         query = self.query(input).unsqueeze(-1)
+#         keys = self.key(features)
+#         values = self.value(features)
+#
+#         size = keys.size(2)
+#         assert size == query.size(1)
+#         scores = torch.bmm(keys, query) / math.sqrt(size)
+#
+#         weights = scores.softmax(1)
+#         context = (values * weights).sum(1)
+#
+#         return context, weights
+
+
+# TODO: check this is valid
 class Attention(nn.Module):
     def __init__(self, size):
         super().__init__()
 
         # TODO: use bias or norm?
         self.query = nn.Linear(size, size)
-        self.key = nn.Linear(size * 2, size)
-        self.value = nn.Linear(size * 2, size)
 
-        nn.init.normal_(self.query.weight, 0, math.sqrt(2.0 / (size + size)))
-        nn.init.normal_(self.key.weight, 0, math.sqrt(2.0 / (size * 2 + size)))
-        nn.init.normal_(self.value.weight, 0, math.sqrt(2.0 / (size * 2 + size)))
+        # nn.init.normal_(self.query.weight, 0, math.sqrt(2.0 / (size + size)))
+
+        nn.init.normal_(self.query.weight, 0, 0.01)
 
         nn.init.constant_(self.query.bias, 0)
-        nn.init.constant_(self.key.bias, 0)
-        nn.init.constant_(self.value.bias, 0)
 
     def forward(self, input, features):
         query = self.query(input).unsqueeze(-1)
-        keys = self.key(features)
-        values = self.value(features)
+        keys = features
+        values = features
 
         size = keys.size(2)
         assert size == query.size(1)
