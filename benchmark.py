@@ -13,5 +13,5 @@ train_data_loader = torch.utils.data.DataLoader(
     collate_fn=collate_fn,
     drop_last=True)
 
-for _ in tqdm(train_data_loader):
+for _ in tqdm(train_data_loader, smoothing=0.1):
     pass
