@@ -186,7 +186,7 @@ def main():
 
         model.train()
         for (spectras, spectras_mask), (labels, labels_mask) in tqdm(
-                train_data_loader, desc='epoch {} training'.format(epoch)):
+                train_data_loader, desc='epoch {} training'.format(epoch), smoothing=0.1):
             spectras, spectras_mask = spectras.to(device), spectras_mask.to(device)
 
             labels, labels_mask = labels.to(device), labels_mask.to(device)
@@ -221,7 +221,7 @@ def main():
         model.eval()
         with torch.no_grad(), Pool(args.workers) as pool:
             for (spectras, spectras_mask), (labels, labels_mask) in tqdm(
-                    eval_data_loader, desc='epoch {} evaluating'.format(epoch)):
+                    eval_data_loader, desc='epoch {} evaluating'.format(epoch), smoothing=0.1):
                 spectras, spectras_mask = spectras.to(device), spectras_mask.to(device)
                 labels, labels_mask = labels.to(device), labels_mask.to(device)
                 logits, _ = model(spectras, labels[:, :-1])
