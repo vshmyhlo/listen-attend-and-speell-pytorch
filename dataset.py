@@ -1,5 +1,4 @@
 import librosa
-import time
 import soundfile
 import numpy as np
 import torch.utils.data
@@ -49,16 +48,14 @@ class TrainEvalDataset(torch.utils.data.Dataset):
     def __getitem__(self, item):
         speaker, chapter, id, syms = self.data[item]
         path = os.path.join(self.path, self.subset, speaker, chapter, '{}.flac'.format(id))
-        t = time.time()
-        sig, rate = librosa.core.load(path, sr=None)
-        # sig, rate = soundfile.read(path, dtype=np.float32)
+        # sig, rate = librosa.core.load(path, sr=None)
+        sig, rate = soundfile.read(path, dtype=np.float32)
         n_fft = check_and_round(0.025 / (1 / rate))  # TODO: refactor
         hop_length = check_and_round(0.01 / (1 / rate))  # TODO: refactor
 
         # spectra = librosa.feature.mfcc(sig, sr=rate, n_mfcc=80, n_fft=n_fft, hop_length=hop_length)
         spectra = librosa.feature.melspectrogram(sig, sr=rate, n_mels=80, n_fft=n_fft, hop_length=hop_length)
         spectra = librosa.power_to_db(spectra, ref=np.max)
-        print(time.time() - t)
         spectra = (spectra - MEAN) / STD
 
         syms = [self.vocab.sos_id] + self.vocab.encode(syms) + [self.vocab.eos_id]
