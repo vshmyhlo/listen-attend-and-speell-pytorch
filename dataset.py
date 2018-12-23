@@ -1,4 +1,5 @@
 import librosa
+import time
 import soundfile
 import numpy as np
 import torch.utils.data
@@ -49,7 +50,9 @@ class TrainEvalDataset(torch.utils.data.Dataset):
         speaker, chapter, id, syms = self.data[item]
         path = os.path.join(self.path, self.subset, speaker, chapter, '{}.flac'.format(id))
         # sig, rate = librosa.core.load(path, sr=None)
+        t = time.time()
         sig, rate = soundfile.read(path, dtype=np.float32)
+        print(time.time() - t)
         n_fft = check_and_round(0.025 / (1 / rate))  # TODO: refactor
         hop_length = check_and_round(0.01 / (1 / rate))  # TODO: refactor
 
