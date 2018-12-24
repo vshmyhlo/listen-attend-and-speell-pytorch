@@ -1,4 +1,5 @@
 import librosa
+from ticpfptp.os import mkdir
 import pickle
 import soundfile
 import numpy as np
@@ -69,7 +70,8 @@ class TrainEvalDataset(torch.utils.data.Dataset):
         speaker, chapter, id, syms = self.data[item]
 
         spectra_path = os.path.join(
-            self.path, '{}-spectra'.format(self.subset), speaker, chapter, '{}.pickle'.format(id))
+            mkdir(os.path.join(self.path, '{}-spectra'.format(self.subset), speaker, chapter)),
+            '{}.pickle'.format(id))
 
         if os.path.exists(spectra_path):
             with open(spectra_path, 'rb') as f:
