@@ -52,11 +52,13 @@ class ConvRNNEncoder(nn.Module):
             modules.ResidualBlockBasic1d(64, 64),
             modules.ResidualBlockBasic1d(64, 64),
 
-            modules.ConvNorm1d(64, 128, 3, stride=2, padding=1),
+            # modules.ConvNorm1d(64, 128, 3, stride=2, padding=1),
+            nn.MaxPool1d(2, 2),
             modules.ResidualBlockBasic1d(128, 128),
             modules.ResidualBlockBasic1d(128, 128),
 
-            modules.ConvNorm1d(128, 256, 3, stride=2, padding=1),
+            # modules.ConvNorm1d(128, 256, 3, stride=2, padding=1),
+            nn.MaxPool1d(2, 2),
             modules.ResidualBlockBasic1d(256, 256),
             modules.ResidualBlockBasic1d(256, 256))
 
@@ -74,44 +76,44 @@ class ConvRNNEncoder(nn.Module):
 
 
 # TODO: check this is valid
-# class Attention(nn.Module):
-#     def __init__(self, size):
-#         super().__init__()
-#
-#         # TODO: use bias or norm?
-#         self.query = nn.Linear(size, size)
-#         self.key = nn.Linear(size * 2, size)
-#         self.value = nn.Linear(size * 2, size)
-#
-#         # nn.init.normal_(self.query.weight, 0, math.sqrt(2.0 / (size + size)))
-#         # nn.init.normal_(self.key.weight, 0, math.sqrt(2.0 / (size * 2 + size)))
-#         # nn.init.normal_(self.value.weight, 0, math.sqrt(2.0 / (size * 2 + size)))
-#
-#         nn.init.normal_(self.query.weight, 0, 0.01)
-#         nn.init.normal_(self.key.weight, 0, 0.01)
-#         nn.init.normal_(self.value.weight, 0, 0.01)
-#
-#         nn.init.constant_(self.query.bias, 0)
-#         nn.init.constant_(self.key.bias, 0)
-#         nn.init.constant_(self.value.bias, 0)
-#
-#     def forward(self, input, features):
-#         query = self.query(input).unsqueeze(-1)
-#         keys = self.key(features)
-#         values = self.value(features)
-#
-#         size = keys.size(2)
-#         assert size == query.size(1)
-#         scores = torch.bmm(keys, query) / math.sqrt(size)
-#
-#         weights = scores.softmax(1)
-#         context = (values * weights).sum(1)
-#
-#         return context, weights
+class QKVScaledDotProductAttention(nn.Module):
+    def __init__(self, size):
+        super().__init__()
+
+        # TODO: use bias or norm?
+        self.query = nn.Linear(size, size)
+        self.key = nn.Linear(size * 2, size)
+        self.value = nn.Linear(size * 2, size)
+
+        # nn.init.normal_(self.query.weight, 0, math.sqrt(2.0 / (size + size)))
+        # nn.init.normal_(self.key.weight, 0, math.sqrt(2.0 / (size * 2 + size)))
+        # nn.init.normal_(self.value.weight, 0, math.sqrt(2.0 / (size * 2 + size)))
+
+        nn.init.normal_(self.query.weight, 0, 0.01)
+        nn.init.normal_(self.key.weight, 0, 0.01)
+        nn.init.normal_(self.value.weight, 0, 0.01)
+
+        nn.init.constant_(self.query.bias, 0)
+        nn.init.constant_(self.key.bias, 0)
+        nn.init.constant_(self.value.bias, 0)
+
+    def forward(self, input, features):
+        query = self.query(input).unsqueeze(-1)
+        keys = self.key(features)
+        values = self.value(features)
+
+        size = keys.size(2)
+        assert size == query.size(1)
+        scores = torch.bmm(keys, query) / math.sqrt(size)
+
+        weights = scores.softmax(1)
+        context = (values * weights).sum(1)
+
+        return context, weights
 
 
 # TODO: check this is valid
-class Attention(nn.Module):
+class DotProductAttention(nn.Module):
     def __init__(self, _):
         super().__init__()
 
@@ -143,7 +145,7 @@ class Decoder(nn.Module):
         # TODO: cell type
         self.rnn = nn.LSTMCell(size * 2, size)
         # self.rnn = nn.GRUCell(size * 2, size)
-        self.attention = Attention(size)
+        self.attention = DotProductAttention(size)
         self.output = nn.Linear(size * 2, vocab_size)
 
     def forward(self, input, features):
