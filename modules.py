@@ -21,11 +21,12 @@ class ConvNorm1d(nn.Module):
 
 
 class ResidualBlockBasic1d(nn.Module):
-    def __init__(self, in_channels, out_channels):
+    def __init__(self, in_channels, out_channels, stride=1, downsample=None):
         super().__init__()
 
-        self.conv_1 = ConvNorm1d(in_channels, out_channels, 3, padding=1)
+        self.conv_1 = ConvNorm1d(in_channels, out_channels, 3, stride=stride, padding=1)
         self.conv_2 = ConvNorm1d(out_channels, out_channels, 3, padding=1)
+        self.downsample = downsample
 
     def forward(self, input):
         residual = input
@@ -33,7 +34,10 @@ class ResidualBlockBasic1d(nn.Module):
         input = self.conv_1(input)
         input = F.relu(input, inplace=True)
         input = self.conv_2(input)
-        input += residual
+        if self.downsample is not None:
+            input += self.downsample(residual)
+        else:
+            input += residual
         input = F.relu(input, inplace=True)
 
         return input

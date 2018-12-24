@@ -42,24 +42,56 @@ class PyramidRNNEncoder(nn.Module):
 
 
 # TODO: more filters
+# class ConvRNNEncoder(nn.Module):
+#     def __init__(self):
+#         super().__init__()
+#
+#         self.conv = nn.Sequential(
+#             modules.ConvNorm1d(80, 64, 7, stride=2, padding=3),
+#             nn.MaxPool1d(3, 2),
+#             modules.ResidualBlockBasic1d(64, 64),
+#             modules.ResidualBlockBasic1d(64, 64),
+#
+#             modules.ConvNorm1d(64, 128, 3, stride=2, padding=1),
+#             modules.ResidualBlockBasic1d(128, 128),
+#             modules.ResidualBlockBasic1d(128, 128),
+#
+#             modules.ConvNorm1d(128, 256, 3, stride=2, padding=1),
+#             modules.ResidualBlockBasic1d(256, 256),
+#             modules.ResidualBlockBasic1d(256, 256))
+#
+#         # self.rnn = nn.LSTM(256, 256, num_layers=1, batch_first=True, bidirectional=True)  # TODO: num layers
+#         self.rnn = nn.LSTM(256, 256, num_layers=1, batch_first=True, bidirectional=False)  # TODO: num layers
+#         # self.rnn = nn.GRU(256, 256, num_layers=1, batch_first=True, bidirectional=True)  # TODO: num layers
+#
+#     def forward(self, input):
+#         input = input.permute(0, 2, 1)
+#         input = self.conv(input)
+#         input = input.permute(0, 2, 1)
+#         input, _ = self.rnn(input)
+#
+#         return input
+
+
 class ConvRNNEncoder(nn.Module):
     def __init__(self):
         super().__init__()
 
         self.conv = nn.Sequential(
-            modules.ConvNorm1d(80, 64, 7, stride=2, padding=3),
-            nn.MaxPool1d(3, 2),
-            modules.ResidualBlockBasic1d(64, 64),
+            modules.ConvNorm1d(80, 32, 3, padding=1),
+            modules.ResidualBlockBasic1d(32, 32),
+            modules.ResidualBlockBasic1d(32, 32),
+
+            modules.ResidualBlockBasic1d(
+                32, 64, stride=2, downsample=modules.ConvNorm1d(32, 64, 3, stride=2, padding=1)),
             modules.ResidualBlockBasic1d(64, 64),
 
-            # modules.ConvNorm1d(64, 128, 3, stride=2, padding=1),
-            nn.MaxPool1d(2, 2),
-            modules.ResidualBlockBasic1d(128, 128),
+            modules.ResidualBlockBasic1d(
+                64, 128, stride=2, downsample=modules.ConvNorm1d(64, 128, 3, stride=2, padding=1)),
             modules.ResidualBlockBasic1d(128, 128),
 
-            # modules.ConvNorm1d(128, 256, 3, stride=2, padding=1),
-            nn.MaxPool1d(2, 2),
-            modules.ResidualBlockBasic1d(256, 256),
+            modules.ResidualBlockBasic1d(
+                128, 256, stride=2, downsample=modules.ConvNorm1d(128, 256, 3, stride=2, padding=1)),
             modules.ResidualBlockBasic1d(256, 256))
 
         # self.rnn = nn.LSTM(256, 256, num_layers=1, batch_first=True, bidirectional=True)  # TODO: num layers
