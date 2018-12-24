@@ -12,7 +12,8 @@ VOCAB = [
 
 # TODO: use larger batch
 # TODO: specific to spectra
-MEAN, STD = -40.6916, 27.8401
+# MEAN, STD = -40.6916, 27.8401
+MEAN, STD = -2.2167, 4.6066
 
 
 class Vocab(object):
@@ -112,6 +113,7 @@ def load_spectra(path):
 
     # spectra = librosa.feature.mfcc(sig, sr=rate, n_mfcc=80, n_fft=n_fft, hop_length=hop_length)
     spectra = librosa.feature.melspectrogram(sig, sr=rate, n_mels=80, n_fft=n_fft, hop_length=hop_length)
-    spectra = librosa.power_to_db(spectra, ref=np.max)
+    # spectra = librosa.power_to_db(spectra, ref=np.max)
+    spectra = np.log(np.maximum(spectra, 1e-7))
 
     return spectra

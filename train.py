@@ -18,6 +18,8 @@ import torch.nn.functional as F
 from metrics import word_error_rate
 
 
+# TODO: per freq norm
+# TODO: mask attention
 # TODO: rescale loss on batch size
 # TODO: log ignore keys
 # TODO: pack padded seq for targets
@@ -205,8 +207,10 @@ def main():
             'learning_rate',
             np.squeeze([param_group['lr'] for param_group in optimizer.param_groups]),
             global_step=epoch)
-        spectras_norm = (spectras.permute(0, 2, 1).unsqueeze(1).cpu() * STD + MEAN) / 80 + 1
-        train_writer.add_image('spectras', torchvision.utils.make_grid(spectras_norm, nrow=1), global_step=epoch)
+        # spectras_norm = (spectras.permute(0, 2, 1).unsqueeze(1).cpu() * STD + MEAN) / 80 + 1
+        # train_writer.add_image('spectras', torchvision.utils.make_grid(spectras_norm, nrow=1), global_step=epoch)
+        train_writer.add_image(
+            'spectras', torchvision.utils.make_grid(spectras, nrow=1, normalize=True), global_step=epoch)
         train_writer.add_image(
             'weights', torchvision.utils.make_grid(weights.unsqueeze(1).cpu(), nrow=1), global_step=epoch)
 
