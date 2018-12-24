@@ -47,17 +47,17 @@ class TrainEvalDataset(torch.utils.data.Dataset):
         self.data = self.load_data(os.path.join(path, subset))
         self.vocab = Vocab(VOCAB)
 
-    def __getitem__(self, item):
-        speaker, chapter, id, syms = self.data[item]
-
-        path = os.path.join(self.path, self.subset, speaker, chapter, '{}.flac'.format(id))
-        spectra = load_spectra(path)
-        spectra = (spectra - MEAN) / STD
-
-        syms = [self.vocab.sos_id] + self.vocab.encode(syms) + [self.vocab.eos_id]
-        syms = np.array(syms)
-
-        return spectra, syms
+    # def __getitem__(self, item):
+    #     speaker, chapter, id, syms = self.data[item]
+    #
+    #     path = os.path.join(self.path, self.subset, speaker, chapter, '{}.flac'.format(id))
+    #     spectra = load_spectra(path)
+    #     spectra = (spectra - MEAN) / STD
+    #
+    #     syms = [self.vocab.sos_id] + self.vocab.encode(syms) + [self.vocab.eos_id]
+    #     syms = np.array(syms)
+    #
+    #     return spectra, syms
 
     def __getitem__(self, item):
         speaker, chapter, id, syms = self.data[item]
