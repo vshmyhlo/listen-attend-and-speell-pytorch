@@ -18,6 +18,7 @@ import torch.nn.functional as F
 from metrics import word_error_rate
 
 
+# TODO: rescale loss on batch size
 # TODO: log ignore keys
 # TODO: pack padded seq for targets
 # TODO: min or max score scheduling
@@ -117,7 +118,7 @@ def build_parser():
     parser.add_argument('--experiment-path', type=str, default='./tf_log')
     parser.add_argument('--restore-path', type=str)
     parser.add_argument('--dataset-path', type=str, default='./data')
-    parser.add_argument('--lr', type=float, default=1e-3)
+    parser.add_argument('--lr', type=float, default=0.2)
     parser.add_argument('--opt', type=str, choices=['adam', 'momentum'], default='momentum')
     parser.add_argument('--bs', type=int, default=32)
     parser.add_argument('--epochs', type=int, default=500)
@@ -162,10 +163,11 @@ def main():
     if args.restore_path is not None:
         load_weights(model_to_save, args.restore_path)
 
+    lr = args.lr / 32 / 32 * args.bs
     if args.opt == 'adam':
-        optimizer = torch.optim.Adam(model.parameters(), args.lr, weight_decay=1e-4)
+        optimizer = torch.optim.Adam(model.parameters(), lr, weight_decay=1e-4)
     elif args.opt == 'momentum':
-        optimizer = torch.optim.SGD(model.parameters(), args.lr, momentum=0.9, weight_decay=1e-4)
+        optimizer = torch.optim.SGD(model.parameters(), lr, momentum=0.9, weight_decay=1e-4)
     else:
         raise AssertionError('invalid optimizer {}'.format(args.opt))
 
