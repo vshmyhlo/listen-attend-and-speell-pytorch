@@ -122,7 +122,9 @@ class Attention(nn.Module):
 
         size = keys.size(2)
         assert size == query.size(1)
-        scores = torch.bmm(keys, query) / math.sqrt(size)
+        # TODO: remove scaling?
+        # scores = torch.bmm(keys, query) / math.sqrt(size)
+        scores = torch.bmm(keys, query)
 
         weights = scores.softmax(1)
         context = (values * weights).sum(1)
