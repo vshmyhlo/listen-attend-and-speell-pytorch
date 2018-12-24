@@ -1,4 +1,5 @@
 import librosa
+import pickle
 import soundfile
 import numpy as np
 import torch.utils.data
@@ -45,17 +46,48 @@ class TrainEvalDataset(torch.utils.data.Dataset):
         self.data = self.load_data(os.path.join(path, subset))
         self.vocab = Vocab(VOCAB)
 
+    # def __getitem__(self, item):
+    #     speaker, chapter, id, syms = self.data[item]
+    #
+    #     path = os.path.join(self.path, self.subset, speaker, chapter, '{}.flac'.format(id))
+    #     # sig, rate = librosa.core.load(path, sr=None)
+    #     sig, rate = soundfile.read(path, dtype=np.float32)
+    #     n_fft = check_and_round(0.025 / (1 / rate))  # TODO: refactor
+    #     hop_length = check_and_round(0.01 / (1 / rate))  # TODO: refactor
+    #
+    #     # spectra = librosa.feature.mfcc(sig, sr=rate, n_mfcc=80, n_fft=n_fft, hop_length=hop_length)
+    #     spectra = librosa.feature.melspectrogram(sig, sr=rate, n_mels=80, n_fft=n_fft, hop_length=hop_length)
+    #     spectra = librosa.power_to_db(spectra, ref=np.max)
+    #     spectra = (spectra - MEAN) / STD
+    #
+    #     syms = [self.vocab.sos_id] + self.vocab.encode(syms) + [self.vocab.eos_id]
+    #     syms = np.array(syms)
+    #
+    #     return spectra, syms
+
     def __getitem__(self, item):
         speaker, chapter, id, syms = self.data[item]
-        path = os.path.join(self.path, self.subset, speaker, chapter, '{}.flac'.format(id))
-        # sig, rate = librosa.core.load(path, sr=None)
-        sig, rate = soundfile.read(path, dtype=np.float32)
-        n_fft = check_and_round(0.025 / (1 / rate))  # TODO: refactor
-        hop_length = check_and_round(0.01 / (1 / rate))  # TODO: refactor
 
-        # spectra = librosa.feature.mfcc(sig, sr=rate, n_mfcc=80, n_fft=n_fft, hop_length=hop_length)
-        spectra = librosa.feature.melspectrogram(sig, sr=rate, n_mels=80, n_fft=n_fft, hop_length=hop_length)
-        spectra = librosa.power_to_db(spectra, ref=np.max)
+        spectra_path = os.path.join(
+            self.path, '{}-spectra'.format(self.subset), speaker, chapter, '{}.pickle'.format(id))
+
+        if os.path.exists(spectra_path):
+            with open(spectra_path, 'rb') as f:
+                spectra = pickle.load(f)
+        else:
+            path = os.path.join(self.path, self.subset, speaker, chapter, '{}.flac'.format(id))
+            # sig, rate = librosa.core.load(path, sr=None)
+            sig, rate = soundfile.read(path, dtype=np.float32)
+            n_fft = check_and_round(0.025 / (1 / rate))  # TODO: refactor
+            hop_length = check_and_round(0.01 / (1 / rate))  # TODO: refactor
+
+            # spectra = librosa.feature.mfcc(sig, sr=rate, n_mfcc=80, n_fft=n_fft, hop_length=hop_length)
+            spectra = librosa.feature.melspectrogram(sig, sr=rate, n_mels=80, n_fft=n_fft, hop_length=hop_length)
+            spectra = librosa.power_to_db(spectra, ref=np.max)
+
+            with open(spectra_path, 'wb') as f:
+                pickle.dump(spectra, f)
+
         spectra = (spectra - MEAN) / STD
 
         syms = [self.vocab.sos_id] + self.vocab.encode(syms) + [self.vocab.eos_id]
