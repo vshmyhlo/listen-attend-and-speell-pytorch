@@ -211,6 +211,14 @@ class Decoder(nn.Module):
         # last_hidden = torch.cat([last_hidden[0], last_hidden[1]], -1)
         # last_hidden = self.project_hidden(last_hidden)
 
+        # TODO: randomly drop features
+        # print(features.size())
+        features_mask = torch.rand(features.size(0), features.size(1), 1) > 0.5
+        # print(features_mask.size())
+        # print(features_mask.dtype)
+        # print(features_mask.float().mean())
+        features = features * features_mask.float()
+
         # TODO: better init
         context = torch.zeros(embeddings.size(0), embeddings.size(2)).to(embeddings.device)
         # context = last_hidden.sum(0)
