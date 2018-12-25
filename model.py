@@ -126,7 +126,7 @@ class ConvRNNEncoder(nn.Module):
                 128, 256, stride=2, downsample=modules.ConvNorm1d(128, 256, 3, stride=2, padding=1)),
             modules.ResidualBlockBasic1d(256, 256))
 
-        self.rnn = nn.LSTM(256, size, num_layers=1, batch_first=True, bidirectional=True)
+        self.rnn = nn.LSTM(256, size // 2, num_layers=1, batch_first=True, bidirectional=True)
 
     def forward(self, input):
         input = input.permute(0, 2, 1)
@@ -202,8 +202,8 @@ class Decoder(nn.Module):
         # TODO: cell type
         self.rnn = nn.LSTMCell(size * 2, size)
         # self.rnn = nn.GRUCell(size * 2, size)
-        # self.attention = DotProductAttention(size)
-        self.attention = QKVScaledDotProductAttention(size)
+        self.attention = DotProductAttention(size)
+        # self.attention = QKVScaledDotProductAttention(size)
         self.output = nn.Linear(size * 2, vocab_size)
 
     def forward(self, input, features):

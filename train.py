@@ -157,7 +157,7 @@ def main():
         collate_fn=collate_fn)
 
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    model = Model(128, len(train_dataset.vocab))
+    model = Model(256, len(train_dataset.vocab))
     model_to_save = model
     if torch.cuda.device_count() > 1:
         model = nn.DataParallel(model)
