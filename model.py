@@ -212,12 +212,13 @@ class Decoder(nn.Module):
         # last_hidden = self.project_hidden(last_hidden)
 
         # TODO: randomly drop features
+        # TODO: try mask for each decoder step
         # print(features.size())
-        features_mask = torch.rand(features.size(0), features.size(1), 1) > 0.5
+        # features_mask = torch.rand(features.size(0), features.size(1), 1) > 0.5
         # print(features_mask.size())
         # print(features_mask.dtype)
         # print(features_mask.float().mean())
-        features = features * features_mask.to(features.device).float()
+        # features = features * features_mask.to(features.device).float()
 
         # TODO: better init
         context = torch.zeros(embeddings.size(0), embeddings.size(2)).to(embeddings.device)
@@ -230,12 +231,24 @@ class Decoder(nn.Module):
         outputs = []
         weights = []
 
+        # for t in range(embeddings.size(1)):
+        #     input = torch.cat([embeddings[:, t, :], context], 1)
+        #     hidden = self.rnn(input, hidden)
+        #     # output, _ = hidden
+        #     output = hidden
+        #     context, weight = self.attention(output, features)
+        #     output = torch.cat([output, context], 1)
+        #     output = self.output(output)
+        #     outputs.append(output)
+        #     weights.append(weight.squeeze(-1))
+
         for t in range(embeddings.size(1)):
             input = torch.cat([embeddings[:, t, :], context], 1)
             hidden = self.rnn(input, hidden)
             # output, _ = hidden
             output = hidden
-            context, weight = self.attention(output, features)
+            features_mask = torch.rand(features.size(0), features.size(1), 1) > 0.5
+            context, weight = self.attention(output, features * features_mask.to(features.device).float())
             output = torch.cat([output, context], 1)
             output = self.output(output)
             outputs.append(output)
