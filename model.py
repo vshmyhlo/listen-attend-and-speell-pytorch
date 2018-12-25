@@ -107,7 +107,8 @@ class Conv1dRNNEncoder(nn.Module):
         super().__init__()
 
         self.conv = nn.Sequential(
-            modules.ConvNorm1d(128, 64, 7, stride=2, padding=3),
+            # modules.ConvNorm1d(128, 64, 7, stride=2, padding=3),
+            modules.ConvNorm1d(128, 64, 7, stride=1, padding=3),
 
             nn.MaxPool1d(3, 2),
             modules.ResidualBlockBasic1d(64, 64),
@@ -206,17 +207,17 @@ class Decoder(nn.Module):
 
     def forward(self, input, features, last_hidden):
         embeddings = self.embedding(input)
-        last_hidden = torch.cat([last_hidden[0], last_hidden[1]], -1)
+        # last_hidden = torch.cat([last_hidden[0], last_hidden[1]], -1)
         # last_hidden = self.project_hidden(last_hidden)
 
         # TODO: better init
-        # context = torch.zeros(embeddings.size(0), embeddings.size(2)).to(embeddings.device)
+        context = torch.zeros(embeddings.size(0), embeddings.size(2)).to(embeddings.device)
         # context = last_hidden.sum(0)
         # context, _ = self.attention(torch.zeros(input.size(0), self.rnn.hidden_size).to(input.device), features)
-        context, _ = self.attention(last_hidden, features)
+        # context, _ = self.attention(last_hidden, features)
 
-        # hidden = None
-        hidden = last_hidden
+        hidden = None
+        # hidden = last_hidden
         outputs = []
         weights = []
 
