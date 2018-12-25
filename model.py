@@ -108,7 +108,7 @@ class PyramidRNNEncoder(nn.Module):
 
 
 class ConvRNNEncoder(nn.Module):
-    def __init__(self):
+    def __init__(self, size):
         super().__init__()
 
         self.conv = nn.Sequential(
@@ -126,7 +126,7 @@ class ConvRNNEncoder(nn.Module):
                 128, 256, stride=2, downsample=modules.ConvNorm1d(128, 256, 3, stride=2, padding=1)),
             modules.ResidualBlockBasic1d(256, 256))
 
-        self.rnn = nn.LSTM(256, 256, num_layers=1, batch_first=True, bidirectional=True)
+        self.rnn = nn.LSTM(256, size, num_layers=1, batch_first=True, bidirectional=True)
 
     def forward(self, input):
         input = input.permute(0, 2, 1)
@@ -195,11 +195,8 @@ class DotProductAttention(nn.Module):
 
 
 class Decoder(nn.Module):
-    def __init__(self, vocab_size):
+    def __init__(self, size, vocab_size):
         super().__init__()
-
-        # TODO:
-        size = 256
 
         self.embedding = nn.Embedding(vocab_size, size, padding_idx=0)
         # TODO: cell type
@@ -239,12 +236,12 @@ class Decoder(nn.Module):
 
 
 class Model(nn.Module):
-    def __init__(self, vocab_size):
+    def __init__(self, size, vocab_size):
         super().__init__()
 
         # self.encoder = PyramidRNNEncoder()
-        self.encoder = ConvRNNEncoder()
-        self.decoder = Decoder(vocab_size)
+        self.encoder = ConvRNNEncoder(size)
+        self.decoder = Decoder(size, vocab_size)
 
     def forward(self, spectras, seqs):
         features = self.encoder(spectras)
