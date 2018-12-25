@@ -89,6 +89,7 @@ class TrainEvalDataset(torch.utils.data.Dataset):
 
     def load_data(self, path):
         data = []
+        lens = []
         for speaker in os.listdir(path):
             for chapter in os.listdir(os.path.join(path, speaker)):
                 trans = os.path.join(path, speaker, chapter, '{}-{}.trans.txt'.format(speaker, chapter))
@@ -96,6 +97,11 @@ class TrainEvalDataset(torch.utils.data.Dataset):
                     for sample in f.read().splitlines():
                         id, syms = sample.split(' ', 1)
                         data.append((speaker, chapter, id, list(syms)))
+                        lens.append(len(syms))
+
+        print(len(lens))
+        print(np.mean(lens))
+        fail
 
         return data
 
