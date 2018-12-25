@@ -12,6 +12,7 @@ VOCAB = [
 
 # TODO: use larger batch
 # TODO: specific to spectra
+# TODO: mean and std without padding
 # MEAN, STD = -40.6916, 27.8401
 MEAN, STD = -2.2167, 4.6066
 
@@ -97,14 +98,14 @@ class TrainEvalDataset(torch.utils.data.Dataset):
                     for sample in f.read().splitlines():
                         id, syms = sample.split(' ', 1)
 
-                        if len(syms) > 100:
-                            continue
+                        # if len(syms) > 100:
+                        #     continue
 
                         data.append((speaker, chapter, id, list(syms)))
                         lens.append(len(syms))
 
         print(len(lens))
-        print(np.mean(lens))
+        print(np.mean(lens), np.std(lens))
         print(len([l for l in lens if l < 180]))
 
         return data
