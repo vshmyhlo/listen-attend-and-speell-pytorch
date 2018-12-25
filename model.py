@@ -251,28 +251,28 @@ class Decoder(nn.Module):
         outputs = []
         weights = []
 
-        for t in range(embeddings.size(1)):
-            input = torch.cat([embeddings[:, t, :], context], 1)
-            hidden = self.rnn(input, hidden)
-            # output, _ = hidden
-            output = hidden
-            context, weight = self.attention(output, features)
-            output = torch.cat([output, context], 1)
-            output = self.output(output)
-            outputs.append(output)
-            weights.append(weight.squeeze(-1))
-
         # for t in range(embeddings.size(1)):
         #     input = torch.cat([embeddings[:, t, :], context], 1)
         #     hidden = self.rnn(input, hidden)
         #     # output, _ = hidden
         #     output = hidden
-        #     features_mask = torch.rand(features.size(0), features.size(1), 1) > 0.5
-        #     context, weight = self.attention(output, features * features_mask.to(features.device).float())
+        #     context, weight = self.attention(output, features)
         #     output = torch.cat([output, context], 1)
         #     output = self.output(output)
         #     outputs.append(output)
         #     weights.append(weight.squeeze(-1))
+
+        for t in range(embeddings.size(1)):
+            input = torch.cat([embeddings[:, t, :], context], 1)
+            hidden = self.rnn(input, hidden)
+            # output, _ = hidden
+            output = hidden
+            features_mask = torch.rand(features.size(0), features.size(1), 1) > 0.5
+            context, weight = self.attention(output, features * features_mask.to(features.device).float())
+            output = torch.cat([output, context], 1)
+            output = self.output(output)
+            outputs.append(output)
+            weights.append(weight.squeeze(-1))
 
         outputs = torch.stack(outputs, 1)
         weights = torch.stack(weights, 1)
