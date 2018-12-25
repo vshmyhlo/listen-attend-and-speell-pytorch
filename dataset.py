@@ -96,13 +96,16 @@ class TrainEvalDataset(torch.utils.data.Dataset):
                 with open(trans) as f:
                     for sample in f.read().splitlines():
                         id, syms = sample.split(' ', 1)
+
+                        if len(syms) < 180:
+                            continue
+
                         data.append((speaker, chapter, id, list(syms)))
                         lens.append(len(syms))
 
         print(len(lens))
         print(np.mean(lens))
-        print(len([l for l in lens if l < 160]))
-        fail
+        print(len([l for l in lens if l < 180]))
 
         return data
 
