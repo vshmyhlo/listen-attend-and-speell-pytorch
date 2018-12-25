@@ -18,6 +18,8 @@ import torch.nn.functional as F
 from metrics import word_error_rate
 
 
+# TODO: check targets are correct
+
 # TODO: per freq norm
 # TODO: mask attention
 # TODO: rescale loss on batch size
@@ -140,6 +142,15 @@ def main():
     fix_seed(args.seed)
 
     train_dataset = TrainEvalDataset(args.dataset_path, subset='train-clean-100')
+    # train_dataset = TrainEvalDataset(args.dataset_path, subset='dev-clean')
+    lens = []
+    for (s, _), _ in tqdm(train_dataset):
+        lens.append(s.shape[0])
+
+    print(len(lens))
+    print(np.mean(lens))
+    fail
+
     train_data_loader = torch.utils.data.DataLoader(
         train_dataset,
         batch_size=args.bs,
