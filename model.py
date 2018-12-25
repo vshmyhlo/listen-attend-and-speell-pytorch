@@ -112,7 +112,7 @@ class ConvRNNEncoder(nn.Module):
         super().__init__()
 
         self.conv = nn.Sequential(
-            modules.ConvNorm1d(80, 64, 7, stride=2, padding=3),
+            modules.ConvNorm1d(128, 64, 7, stride=2, padding=3),
 
             nn.MaxPool1d(3, 2),
             modules.ResidualBlockBasic1d(64, 64),
