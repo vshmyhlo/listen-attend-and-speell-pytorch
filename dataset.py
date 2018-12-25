@@ -98,8 +98,8 @@ class TrainEvalDataset(torch.utils.data.Dataset):
                     for sample in f.read().splitlines():
                         id, syms = sample.split(' ', 1)
 
-                        # if len(syms) > 100:
-                        #     continue
+                        if len(syms) not in range(185 - (60 // 4), 185 + (60 // 4)):
+                            continue
 
                         data.append((speaker, chapter, id, list(syms)))
                         lens.append(len(syms))
