@@ -209,8 +209,8 @@ def main():
             global_step=epoch)
         # spectras_norm = (spectras.permute(0, 2, 1).unsqueeze(1).cpu() * STD + MEAN) / 80 + 1
         # train_writer.add_image('spectras', torchvision.utils.make_grid(spectras_norm, nrow=1), global_step=epoch)
-        train_writer.add_image(
-            'spectras', torchvision.utils.make_grid(spectras, nrow=1, normalize=True), global_step=epoch)
+        # train_writer.add_image(
+        #     'spectras', torchvision.utils.make_grid(spectras, nrow=1, normalize=True), global_step=epoch)
         train_writer.add_image(
             'weights', torchvision.utils.make_grid(weights.unsqueeze(1).cpu(), nrow=1), global_step=epoch)
 
