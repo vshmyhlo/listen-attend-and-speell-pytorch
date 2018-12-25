@@ -8,11 +8,11 @@ import modules
 # todo mel scale ref
 
 
-class PBLSTM(nn.Module):
+class PBRNN(nn.Module):
     def __init__(self, input_size, hidden_size):
         super().__init__()
 
-        self.rnn = nn.LSTM(input_size, hidden_size, num_layers=1, batch_first=True, bidirectional=True)  # TODO:
+        self.rnn = nn.GRU(input_size, hidden_size, num_layers=1, batch_first=True, bidirectional=True)  # TODO:
 
     def forward(self, input):
         if input.size(1) % 2 == 1:
@@ -28,9 +28,9 @@ class PyramidRNNEncoder(nn.Module):
     def __init__(self):
         super().__init__()
 
-        self.rnn_1 = PBLSTM(160, 64)
-        self.rnn_2 = PBLSTM(256, 128)
-        self.rnn_3 = PBLSTM(512, 256)
+        self.rnn_1 = PBRNN(160, 64)
+        self.rnn_2 = PBRNN(256, 128)
+        self.rnn_3 = PBRNN(512, 256)
 
     def forward(self, input):
         input, _ = self.rnn_1(input)
@@ -102,7 +102,7 @@ class PyramidRNNEncoder(nn.Module):
 #         return input
 
 
-class ConvRNNEncoder(nn.Module):
+class Conv1dRNNEncoder(nn.Module):
     def __init__(self, size):
         super().__init__()
 
@@ -130,6 +130,10 @@ class ConvRNNEncoder(nn.Module):
         input, last_hidden = self.rnn(input)
 
         return input, last_hidden
+
+
+class Conv2dRNNEncoder(nn.Module):
+    pass
 
 
 # TODO: check this is valid
@@ -202,14 +206,17 @@ class Decoder(nn.Module):
 
     def forward(self, input, features, last_hidden):
         embeddings = self.embedding(input)
+        last_hidden = torch.cat([last_hidden[0], last_hidden[1]], -1)
+        # last_hidden = self.project_hidden(last_hidden)
 
         # TODO: better init
-        context = torch.zeros(embeddings.size(0), embeddings.size(2)).to(embeddings.device)
+        # context = torch.zeros(embeddings.size(0), embeddings.size(2)).to(embeddings.device)
         # context = last_hidden.sum(0)
         # context, _ = self.attention(torch.zeros(input.size(0), self.rnn.hidden_size).to(input.device), features)
+        context, _ = self.attention(last_hidden, features)
 
         # hidden = None
-        hidden = torch.cat([last_hidden[0], last_hidden[1]], -1)
+        hidden = last_hidden
         outputs = []
         weights = []
 
@@ -235,7 +242,8 @@ class Model(nn.Module):
         super().__init__()
 
         # self.encoder = PyramidRNNEncoder()
-        self.encoder = ConvRNNEncoder(size)
+        self.encoder = Conv1dRNNEncoder(size)
+        # self.encoder = Conv2dRNNEncoder(size)
         self.decoder = Decoder(size, vocab_size)
 
     def forward(self, spectras, seqs):
