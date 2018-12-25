@@ -221,8 +221,8 @@ class Decoder(nn.Module):
 
         self.embedding = nn.Embedding(vocab_size, size, padding_idx=0)
         self.rnn = nn.GRUCell(size * 2, size)
-        # self.attention = DotProductAttention(size)
-        self.attention = ScaledDotProductAttention(size)
+        self.attention = DotProductAttention(size)
+        # self.attention = ScaledDotProductAttention(size)
         # self.attention = QKVScaledDotProductAttention(size)
         self.output = nn.Linear(size * 2, vocab_size)
 
