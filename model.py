@@ -217,7 +217,7 @@ class Decoder(nn.Module):
         # print(features_mask.size())
         # print(features_mask.dtype)
         # print(features_mask.float().mean())
-        features = features * features_mask.float()
+        features = features * features_mask.to(features.device).float()
 
         # TODO: better init
         context = torch.zeros(embeddings.size(0), embeddings.size(2)).to(embeddings.device)
