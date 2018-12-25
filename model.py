@@ -3,7 +3,6 @@ import math
 import torch
 import torch.nn.functional as F
 import modules
-import torchvision
 
 
 # todo mel scale ref
@@ -60,9 +59,7 @@ class PyramidRNNEncoder(nn.Module):
 #             modules.ResidualBlockBasic1d(256, 256),
 #             modules.ResidualBlockBasic1d(256, 256))
 #
-#         # self.rnn = nn.LSTM(256, 256, num_layers=1, batch_first=True, bidirectional=True)  # TODO: num layers
-#         self.rnn = nn.LSTM(256, 256, num_layers=1, batch_first=True, bidirectional=False)  # TODO: num layers
-#         # self.rnn = nn.GRU(256, 256, num_layers=1, batch_first=True, bidirectional=True)  # TODO: num layers
+#         self.rnn = nn.GRU(256, 256, num_layers=1, batch_first=True, bidirectional=False)  # TODO: num layers
 #
 #     def forward(self, input):
 #         input = input.permute(0, 2, 1)
@@ -94,9 +91,7 @@ class PyramidRNNEncoder(nn.Module):
 #                 128, 256, stride=2, downsample=modules.ConvNorm1d(128, 256, 3, stride=2, padding=1)),
 #             modules.ResidualBlockBasic1d(256, 256))
 #
-#         # self.rnn = nn.LSTM(256, 256, num_layers=1, batch_first=True, bidirectional=True)  # TODO: num layers
-#         self.rnn = nn.LSTM(256, 256, num_layers=1, batch_first=True, bidirectional=False)  # TODO: num layers
-#         # self.rnn = nn.GRU(256, 256, num_layers=1, batch_first=True, bidirectional=True)  # TODO: num layers
+#         self.rnn = nn.GRU(256, 256, num_layers=1, batch_first=True, bidirectional=False)  # TODO: num layers
 #
 #     def forward(self, input):
 #         input = input.permute(0, 2, 1)
@@ -126,16 +121,15 @@ class ConvRNNEncoder(nn.Module):
                 128, 256, stride=2, downsample=modules.ConvNorm1d(128, 256, 3, stride=2, padding=1)),
             modules.ResidualBlockBasic1d(256, 256))
 
-        # self.rnn = nn.LSTM(256, size // 2, num_layers=1, batch_first=True, bidirectional=True)
         self.rnn = nn.GRU(256, size // 2, num_layers=1, batch_first=True, bidirectional=True)
 
     def forward(self, input):
         input = input.permute(0, 2, 1)
         input = self.conv(input)
         input = input.permute(0, 2, 1)
-        input, _ = self.rnn(input)
+        input, last_hidden = self.rnn(input)
 
-        return input
+        return input, last_hidden
 
 
 # TODO: check this is valid
@@ -195,19 +189,18 @@ class DotProductAttention(nn.Module):
         return context, weights
 
 
+# TODO: cell type
 class Decoder(nn.Module):
     def __init__(self, size, vocab_size):
         super().__init__()
 
         self.embedding = nn.Embedding(vocab_size, size, padding_idx=0)
-        # TODO: cell type
-        # self.rnn = nn.LSTMCell(size * 2, size)
         self.rnn = nn.GRUCell(size * 2, size)
         self.attention = DotProductAttention(size)
         # self.attention = QKVScaledDotProductAttention(size)
         self.output = nn.Linear(size * 2, vocab_size)
 
-    def forward(self, input, features):
+    def forward(self, input, features, last_hidden):
         embeddings = self.embedding(input)
 
         # TODO: better init
@@ -215,7 +208,8 @@ class Decoder(nn.Module):
         # context = last_hidden.sum(0)
         # context, _ = self.attention(torch.zeros(input.size(0), self.rnn.hidden_size).to(input.device), features)
 
-        hidden = None
+        # hidden = None
+        hidden = torch.cat([last_hidden[0], last_hidden[1]], -1)
         outputs = []
         weights = []
 
@@ -245,7 +239,7 @@ class Model(nn.Module):
         self.decoder = Decoder(size, vocab_size)
 
     def forward(self, spectras, seqs):
-        features = self.encoder(spectras)
-        logits, weights = self.decoder(seqs, features)
+        features, last_hidden = self.encoder(spectras)
+        logits, weights = self.decoder(seqs, features, last_hidden)
 
         return logits, weights
