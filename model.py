@@ -195,6 +195,25 @@ class DotProductAttention(nn.Module):
         return context, weights
 
 
+class ScaledDotProductAttention(nn.Module):
+    def __init__(self, _):
+        super().__init__()
+
+    def forward(self, input, features):
+        query = input.unsqueeze(-1)
+        keys = features
+        values = features
+
+        size = keys.size(2)
+        assert size == query.size(1)
+        scores = torch.bmm(keys, query) / math.sqrt(size)
+
+        weights = scores.softmax(1)
+        context = (values * weights).sum(1)
+
+        return context, weights
+
+
 # TODO: cell type
 class Decoder(nn.Module):
     def __init__(self, size, vocab_size):
@@ -202,7 +221,8 @@ class Decoder(nn.Module):
 
         self.embedding = nn.Embedding(vocab_size, size, padding_idx=0)
         self.rnn = nn.GRUCell(size * 2, size)
-        self.attention = DotProductAttention(size)
+        # self.attention = DotProductAttention(size)
+        self.attention = ScaledDotProductAttention(size)
         # self.attention = QKVScaledDotProductAttention(size)
         self.output = nn.Linear(size * 2, vocab_size)
 
