@@ -101,7 +101,7 @@ class TrainEvalDataset(torch.utils.data.Dataset):
 
         print(len(lens))
         print(np.mean(lens))
-        print(len(l for l in lens if l < 100))
+        print(len([l for l in lens if l < 100]))
         fail
 
         return data
