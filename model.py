@@ -122,7 +122,8 @@ class Conv1dRNNEncoder(nn.Module):
                 128, 256, stride=2, downsample=modules.ConvNorm1d(128, 256, 3, stride=2, padding=1)),
             modules.ResidualBlockBasic1d(256, 256))
 
-        self.rnn = nn.GRU(256, size // 2, num_layers=1, batch_first=True, bidirectional=True)
+        # self.rnn = nn.GRU(256, size // 2, num_layers=1, batch_first=True, bidirectional=True)
+        self.rnn = nn.GRU(256, size // 2, num_layers=3, batch_first=True, bidirectional=True)
 
     def forward(self, input):
         input = input.permute(0, 2, 1)
