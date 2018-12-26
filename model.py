@@ -139,8 +139,41 @@ class Conv1dRNNEncoder(nn.Module):
         return input, last_hidden
 
 
-class Conv2dRNNEncoder(nn.Module):
-    pass
+class DeepConv1dRNNEncoder(nn.Module):
+    def __init__(self, size):
+        super().__init__()
+
+        self.conv = nn.Sequential(
+            modules.ConvNorm1d(128, 64, 7, stride=2, padding=3),
+            nn.MaxPool1d(3, 2),
+
+            modules.ResidualBlockBasic1d(64, 64),
+            modules.ResidualBlockBasic1d(64, 64),
+            modules.ResidualBlockBasic1d(64, 64),
+
+            modules.ResidualBlockBasic1d(
+                64, 128, stride=2, downsample=modules.ConvNorm1d(64, 128, 3, stride=2, padding=1)),
+            modules.ResidualBlockBasic1d(128, 128),
+            modules.ResidualBlockBasic1d(128, 128),
+            modules.ResidualBlockBasic1d(128, 128),
+
+            modules.ResidualBlockBasic1d(
+                128, 256, stride=2, downsample=modules.ConvNorm1d(128, 256, 3, stride=2, padding=1)),
+            modules.ResidualBlockBasic1d(256, 256),
+            modules.ResidualBlockBasic1d(256, 256),
+            modules.ResidualBlockBasic1d(256, 256),
+            modules.ResidualBlockBasic1d(256, 256),
+            modules.ResidualBlockBasic1d(256, 256))
+
+        self.rnn = nn.GRU(256, size // 2, num_layers=3, batch_first=True, bidirectional=True)
+
+    def forward(self, input):
+        input = input.permute(0, 2, 1)
+        input = self.conv(input)
+        input = input.permute(0, 2, 1)
+        input, last_hidden = self.rnn(input)
+
+        return input, last_hidden
 
 
 # TODO: check this is valid
@@ -308,11 +341,7 @@ class Model(nn.Module):
     def __init__(self, size, vocab_size):
         super().__init__()
 
-        # self.encoder = PyramidRNNEncoder(size)
-        self.encoder = Conv1dRNNEncoder(size)
-        # self.encoder = Conv2dRNNEncoder(size)
-
-        # self.decoder = AttentionDecoder(size, vocab_size)
+        self.encoder = DeepConv1dRNNEncoder(size)
         self.decoder = DeepAttentionDecoder(size, vocab_size)
 
     def forward(self, spectras, seqs):
