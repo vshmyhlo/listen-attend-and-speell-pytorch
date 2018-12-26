@@ -56,7 +56,7 @@ class TimeDropout(nn.Module):
 
         if self.training:
             mask = torch.rand(input.size(0), input.size(1), 1) > self.p
-            mask = mask.float()
+            mask = mask.float().to(device)
 
             # print(input.size())
             # print(mask.size())
