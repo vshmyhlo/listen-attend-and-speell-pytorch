@@ -1,4 +1,5 @@
 import torch.nn as nn
+import torch
 import torch.nn.functional as F
 
 
@@ -39,5 +40,29 @@ class ResidualBlockBasic1d(nn.Module):
         else:
             input += residual
         input = F.relu(input, inplace=True)
+
+        return input
+
+
+class TimeDropout(nn.Module):
+    def __init__(self, p):
+        super().__init__()
+
+        self.p = p
+        # self.dist = torch.distributions.Categorical([p, 1 - p])
+
+    def forward(self, input):
+        assert input.dim() == 3
+
+        if self.training:
+            mask = torch.rand(input.size(0), input.size(1), 1) > self.p
+            mask = mask.float()
+
+            # print(input.size())
+            # print(mask.size())
+            # print(mask.mean())
+            # print(mask.mean() * (1 / (1 - self.p)))
+
+            input = (input * mask) * (1 / (1 - self.p))
 
         return input

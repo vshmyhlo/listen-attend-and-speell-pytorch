@@ -32,10 +32,22 @@ class PyramidRNNEncoder(nn.Module):
         self.rnn_2 = PBRNN(size * 2, size // 2)
         self.rnn_3 = PBRNN(size * 2, size // 2)
 
+        self.d = modules.TimeDropout(0.5)
+
+    # def forward(self, input):
+    #     input, _ = self.rnn_1(input)
+    #     input, _ = self.rnn_2(input)
+    #     input, last_hidden = self.rnn_3(input)
+    #
+    #     return input, last_hidden
+
     def forward(self, input):
         input, _ = self.rnn_1(input)
+        input = self.d(input)
         input, _ = self.rnn_2(input)
+        input = self.d(input)
         input, last_hidden = self.rnn_3(input)
+        input = self.d(input)
 
         return input, last_hidden
 
