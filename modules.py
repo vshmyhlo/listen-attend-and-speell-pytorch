@@ -55,8 +55,8 @@ class TimeDropout(nn.Module):
         assert input.dim() == 3
 
         if self.training:
-            mask = torch.rand(input.size(0), input.size(1), 1) > self.p
-            mask = mask.float().to(input.device)
+            mask = torch.rand(input.size(0), input.size(1), 1).to(input.device)
+            mask = (mask > self.p).float()
 
             # print(input.size())
             # print(mask.size())
