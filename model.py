@@ -25,12 +25,12 @@ class PBRNN(nn.Module):
 
 
 class PyramidRNNEncoder(nn.Module):
-    def __init__(self):
+    def __init__(self, size):
         super().__init__()
 
-        self.rnn_1 = PBRNN(160, 64)
-        self.rnn_2 = PBRNN(256, 128)
-        self.rnn_3 = PBRNN(512, 256)
+        self.rnn_1 = PBRNN(256, size // 2)
+        self.rnn_2 = PBRNN(size, size // 2)
+        self.rnn_3 = PBRNN(size, size // 2)
 
     def forward(self, input):
         input, _ = self.rnn_1(input)
@@ -284,8 +284,8 @@ class Model(nn.Module):
     def __init__(self, size, vocab_size):
         super().__init__()
 
-        # self.encoder = PyramidRNNEncoder()
-        self.encoder = Conv1dRNNEncoder(size)
+        self.encoder = PyramidRNNEncoder(size)
+        # self.encoder = Conv1dRNNEncoder(size)
         # self.encoder = Conv2dRNNEncoder(size)
         self.decoder = Decoder(size, vocab_size)
 
