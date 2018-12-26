@@ -32,8 +32,6 @@ class PyramidRNNEncoder(nn.Module):
         self.rnn_2 = PBRNN(size * 2, size // 2)
         self.rnn_3 = PBRNN(size * 2, size // 2)
 
-        self.d = modules.TimeDropout(0.5)
-
     # def forward(self, input):
     #     input, _ = self.rnn_1(input)
     #     input, _ = self.rnn_2(input)
@@ -43,11 +41,8 @@ class PyramidRNNEncoder(nn.Module):
 
     def forward(self, input):
         input, _ = self.rnn_1(input)
-        input = self.d(input)
         input, _ = self.rnn_2(input)
-        input = self.d(input)
         input, last_hidden = self.rnn_3(input)
-        input = self.d(input)
 
         return input, last_hidden
 
@@ -134,8 +129,7 @@ class Conv1dRNNEncoder(nn.Module):
                 128, 256, stride=2, downsample=modules.ConvNorm1d(128, 256, 3, stride=2, padding=1)),
             modules.ResidualBlockBasic1d(256, 256))
 
-        # self.rnn = nn.GRU(256, size // 2, num_layers=1, batch_first=True, bidirectional=True)
-        self.rnn = nn.GRU(256, size // 2, num_layers=3, batch_first=True, bidirectional=True)
+        self.rnn = nn.GRU(256, size // 2, num_layers=1, batch_first=True, bidirectional=True)
 
     def forward(self, input):
         input = input.permute(0, 2, 1)
@@ -227,7 +221,7 @@ class ScaledDotProductAttention(nn.Module):
 
 
 # TODO: cell type
-class Decoder(nn.Module):
+class AttentionDecoder(nn.Module):
     def __init__(self, size, vocab_size):
         super().__init__()
 
@@ -242,15 +236,6 @@ class Decoder(nn.Module):
         embeddings = self.embedding(input)
         # last_hidden = torch.cat([last_hidden[0], last_hidden[1]], -1)
         # last_hidden = self.project_hidden(last_hidden)
-
-        # TODO: randomly drop features
-        # TODO: try mask for each decoder step
-        # print(features.size())
-        # features_mask = torch.rand(features.size(0), features.size(1), 1) > 0.5
-        # print(features_mask.size())
-        # print(features_mask.dtype)
-        # print(features_mask.float().mean())
-        # features = features * features_mask.to(features.device).float()
 
         # TODO: better init
         context = torch.zeros(embeddings.size(0), embeddings.size(2)).to(embeddings.device)
@@ -274,18 +259,6 @@ class Decoder(nn.Module):
             outputs.append(output)
             weights.append(weight.squeeze(-1))
 
-        # for t in range(embeddings.size(1)):
-        #     input = torch.cat([embeddings[:, t, :], context], 1)
-        #     hidden = self.rnn(input, hidden)
-        #     # output, _ = hidden
-        #     output = hidden
-        #     features_mask = torch.rand(features.size(0), features.size(1), 1) > 0.5
-        #     context, weight = self.attention(output, features * features_mask.to(features.device).float())
-        #     output = torch.cat([output, context], 1)
-        #     output = self.output(output)
-        #     outputs.append(output)
-        #     weights.append(weight.squeeze(-1))
-
         outputs = torch.stack(outputs, 1)
         weights = torch.stack(weights, 1)
 
@@ -299,7 +272,7 @@ class Model(nn.Module):
         self.encoder = PyramidRNNEncoder(size)
         # self.encoder = Conv1dRNNEncoder(size)
         # self.encoder = Conv2dRNNEncoder(size)
-        self.decoder = Decoder(size, vocab_size)
+        self.decoder = AttentionDecoder(size, vocab_size)
 
     def forward(self, spectras, seqs):
         features, last_hidden = self.encoder(spectras)
