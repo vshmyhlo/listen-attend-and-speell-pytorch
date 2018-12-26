@@ -129,7 +129,7 @@ class Conv1dRNNEncoder(nn.Module):
                 128, 256, stride=2, downsample=modules.ConvNorm1d(128, 256, 3, stride=2, padding=1)),
             modules.ResidualBlockBasic1d(256, 256))
 
-        self.rnn = nn.GRU(256, size // 2, num_layers=1, batch_first=True, bidirectional=True)
+        self.rnn = nn.GRU(256, size // 2, num_layers=3, batch_first=True, bidirectional=True)
 
     def forward(self, input):
         input = input.permute(0, 2, 1)
@@ -250,7 +250,6 @@ class AttentionDecoder(nn.Module):
         for t in range(embeddings.size(1)):
             input = torch.cat([embeddings[:, t, :], context], 1)
             hidden = self.rnn(input, hidden)
-            # output, _ = hidden
             output = hidden
             context, weight = self.attention(output, features)
             output = torch.cat([output, context], 1)
@@ -310,8 +309,8 @@ class Model(nn.Module):
     def __init__(self, size, vocab_size):
         super().__init__()
 
-        self.encoder = PyramidRNNEncoder(size)
-        # self.encoder = Conv1dRNNEncoder(size)
+        # self.encoder = PyramidRNNEncoder(size)
+        self.encoder = Conv1dRNNEncoder(size)
         # self.encoder = Conv2dRNNEncoder(size)
 
         # self.decoder = AttentionDecoder(size, vocab_size)
