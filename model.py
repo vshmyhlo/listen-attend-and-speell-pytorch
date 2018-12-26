@@ -28,8 +28,8 @@ class PyramidRNNEncoder(nn.Module):
     def __init__(self, size):
         super().__init__()
 
-        self.rnn_1 = PBRNN(256, size // 2)
-        self.rnn_2 = PBRNN(size, size // 2)
+        self.rnn_1 = PBRNN(256, size // 4)
+        self.rnn_2 = PBRNN(size, size // 4)
         self.rnn_3 = PBRNN(size, size // 2)
 
     def forward(self, input):
