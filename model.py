@@ -301,7 +301,7 @@ class SimpleDecoder(nn.Module):
 
         self.embedding = nn.Embedding(vocab_size, size, padding_idx=0)
         self.rnn = nn.GRUCell(size, size)
-        self.output = nn.Linear(size * 2, vocab_size)
+        self.output = nn.Linear(size, vocab_size)
 
     def forward(self, input, features, last_hidden):
         embeddings = self.embedding(input)
@@ -317,7 +317,7 @@ class SimpleDecoder(nn.Module):
         # hidden = None
         hidden = last_hidden
         outputs = []
-        weights = []
+        # weights = []
 
         for t in range(embeddings.size(1)):
             # input = torch.cat([embeddings[:, t, :], context], 1)
