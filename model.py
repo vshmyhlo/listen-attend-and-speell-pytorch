@@ -1,5 +1,5 @@
 import torch.nn as nn
-import math
+import attention
 import torch
 import torch.nn.functional as F
 import modules
@@ -176,91 +176,13 @@ class DeepConv1dRNNEncoder(nn.Module):
         return input, last_hidden
 
 
-# TODO: check this is valid
-class QKVScaledDotProductAttention(nn.Module):
-    def __init__(self, size):
-        super().__init__()
-
-        # TODO: use bias or norm?
-        self.query = nn.Linear(size, size)
-        self.key = nn.Linear(size * 2, size)
-        self.value = nn.Linear(size * 2, size)
-
-        # nn.init.normal_(self.query.weight, 0, math.sqrt(2.0 / (size + size)))
-        # nn.init.normal_(self.key.weight, 0, math.sqrt(2.0 / (size * 2 + size)))
-        # nn.init.normal_(self.value.weight, 0, math.sqrt(2.0 / (size * 2 + size)))
-
-        nn.init.normal_(self.query.weight, 0, 0.01)
-        nn.init.normal_(self.key.weight, 0, 0.01)
-        nn.init.normal_(self.value.weight, 0, 0.01)
-
-        nn.init.constant_(self.query.bias, 0)
-        nn.init.constant_(self.key.bias, 0)
-        nn.init.constant_(self.value.bias, 0)
-
-    def forward(self, input, features):
-        query = self.query(input).unsqueeze(-1)
-        keys = self.key(features)
-        values = self.value(features)
-
-        size = keys.size(2)
-        assert size == query.size(1)
-        scores = torch.bmm(keys, query) / math.sqrt(size)
-
-        weights = scores.softmax(1)
-        context = (values * weights).sum(1)
-
-        return context, weights
-
-
-# TODO: check this is valid
-class DotProductAttention(nn.Module):
-    def __init__(self, _):
-        super().__init__()
-
-    def forward(self, input, features):
-        query = input.unsqueeze(-1)
-        keys = features
-        values = features
-
-        size = keys.size(2)
-        assert size == query.size(1)
-        scores = torch.bmm(keys, query)
-
-        weights = scores.softmax(1)
-        context = (values * weights).sum(1)
-
-        return context, weights
-
-
-class ScaledDotProductAttention(nn.Module):
-    def __init__(self, _):
-        super().__init__()
-
-    def forward(self, input, features):
-        query = input.unsqueeze(-1)
-        keys = features
-        values = features
-
-        size = keys.size(2)
-        assert size == query.size(1)
-        scores = torch.bmm(keys, query) / math.sqrt(size)
-
-        weights = scores.softmax(1)
-        context = (values * weights).sum(1)
-
-        return context, weights
-
-
 class AttentionDecoder(nn.Module):
     def __init__(self, size, vocab_size):
         super().__init__()
 
         self.embedding = nn.Embedding(vocab_size, size, padding_idx=0)
         self.rnn = nn.GRUCell(size * 2, size)
-        self.attention = DotProductAttention(size)
-        # self.attention = ScaledDotProductAttention(size)
-        # self.attention = QKVScaledDotProductAttention(size)
+        self.attention = attention.DotProductAttention()
         self.output = nn.Linear(size * 2, vocab_size)
 
     def forward(self, input, features, last_hidden):
@@ -288,6 +210,48 @@ class AttentionDecoder(nn.Module):
             output = self.output(output)
             outputs.append(output)
             weights.append(weight.squeeze(-1))
+
+        outputs = torch.stack(outputs, 1)
+        weights = torch.stack(weights, 1)
+
+        return outputs, weights
+
+
+class HybridAttentionDecoder(nn.Module):
+    def __init__(self, size, vocab_size):
+        super().__init__()
+
+        self.embedding = nn.Embedding(vocab_size, size, padding_idx=0)
+        self.rnn = nn.GRUCell(size * 2, size)
+        self.attention = attention.HyrbidAttention(size)
+        self.output = nn.Linear(size * 2, vocab_size)
+
+    def forward(self, input, features, last_hidden):
+        embeddings = self.embedding(input)
+        # last_hidden = torch.cat([last_hidden[0], last_hidden[1]], -1)
+        # last_hidden = self.project_hidden(last_hidden)
+
+        # TODO: better init
+        context = torch.zeros(features.size(0), features.size(2)).to(features.device)
+        weight = torch.zeros(features.size(0), features.size(1)).to(features.device)
+        # context = last_hidden.sum(0)
+        # context, _ = self.attention(torch.zeros(input.size(0), self.rnn.hidden_size).to(input.device), features)
+        # context, _ = self.attention(last_hidden, features)
+
+        hidden = None
+        # hidden = last_hidden
+        outputs = []
+        weights = []
+
+        for t in range(embeddings.size(1)):
+            input = torch.cat([embeddings[:, t, :], context], 1)
+            hidden = self.rnn(input, hidden)
+            output = hidden
+            context, weight = self.attention(output, features, weight)
+            output = torch.cat([output, context], 1)
+            output = self.output(output)
+            outputs.append(output)
+            weights.append(weight)
 
         outputs = torch.stack(outputs, 1)
         weights = torch.stack(weights, 1)
@@ -332,7 +296,6 @@ class SimpleDecoder(nn.Module):
 
         outputs = torch.stack(outputs, 1)
         # weights = torch.stack(weights, 1)
-
         weights = torch.zeros(features.size(0), 10, 10)  # placeholder
 
         return outputs, weights
@@ -345,7 +308,7 @@ class DeepAttentionDecoder(nn.Module):
         self.embedding = nn.Embedding(vocab_size, size, padding_idx=0)
         self.rnn_1 = nn.GRUCell(size * 2, size)
         self.rnn_2 = nn.GRUCell(size * 2, size)
-        self.attention = DotProductAttention(size)
+        self.attention = attention.DotProductAttention()
         self.output = nn.Linear(size, vocab_size)
 
     def forward(self, input, features, last_hidden):
@@ -385,7 +348,7 @@ class Model(nn.Module):
         super().__init__()
 
         self.encoder = DeepConv1dRNNEncoder(size)
-        self.decoder = SimpleDecoder(size, vocab_size)
+        self.decoder = HybridAttentionDecoder(size, vocab_size)
 
     def forward(self, spectras, seqs):
         features, last_hidden = self.encoder(spectras)
