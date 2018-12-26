@@ -91,7 +91,9 @@ class HyrbidAttention(nn.Module):
         scores = F.tanh(scores)
         scores = self.scores(scores)
 
-        weights = scores.softmax(1)
+        # weights = scores.softmax(1)
+        weights = scores.sigmoid()
+        weights = weights / weights.sum(1, keepdim=True)
         context = (encoder_features * weights).sum(1)
 
         return context, weights.squeeze(-1)
