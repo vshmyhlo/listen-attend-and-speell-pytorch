@@ -35,9 +35,9 @@ class PyramidRNNEncoder(nn.Module):
     def forward(self, input):
         input, _ = self.rnn_1(input)
         input, _ = self.rnn_2(input)
-        input, _ = self.rnn_3(input)
+        input, last_hidden = self.rnn_3(input)
 
-        return input
+        return input, last_hidden
 
 
 # TODO: more filters
