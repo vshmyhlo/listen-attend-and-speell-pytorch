@@ -18,8 +18,9 @@ import torch.nn.functional as F
 from metrics import word_error_rate
 
 
+# TODO: dropout
 # TODO: check targets are correct
-
+# TODO: pack sequence
 # TODO: per freq norm
 # TODO: mask attention
 # TODO: rescale loss on batch size
@@ -126,6 +127,7 @@ def build_parser():
     parser.add_argument('--opt', type=str, choices=['adam', 'momentum'], default='momentum')
     parser.add_argument('--bs', type=int, default=32)
     parser.add_argument('--epochs', type=int, default=500)
+    parser.add_argument('--size', type=int, default=256)
     parser.add_argument('--workers', type=int, default=os.cpu_count())
     parser.add_argument('--sched', type=int, default=10)
     parser.add_argument('--seed', type=int, default=42)
@@ -160,7 +162,7 @@ def main():
         collate_fn=collate_fn)
 
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    model = Model(256, len(train_dataset.vocab))
+    model = Model(args.size, len(train_dataset.vocab))
     model_to_save = model
     if torch.cuda.device_count() > 1:
         model = nn.DataParallel(model)
