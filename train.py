@@ -62,13 +62,13 @@ def compute_score(labels, logits, vocab, pool):
     refs = [take_until_token(true.tolist(), vocab.eos_id) for true in true]
     hyps = [take_until_token(pred.tolist(), vocab.eos_id) for pred in pred]
     # cers = pool.starmap(word_error_rate, zip(refs, hyps))
-    cers = [200]  # TODO:
+    # cers = [200]  # TODO:
 
     refs = map(lambda ref: chars_to_words(vocab.decode(ref)), refs)
     hyps = map(lambda hyp: chars_to_words(vocab.decode(hyp)), hyps)
     wers = pool.starmap(word_error_rate, zip(refs, hyps))
 
-    return cers, wers
+    return wers
 
 
 def pad_and_pack(arrays):
@@ -188,7 +188,7 @@ def main():
     best_score = 0
 
     # metrics
-    metrics = {'loss': Mean(), 'cer': Mean(), 'wer': Mean()}
+    metrics = {'loss': Mean(), 'wer': Mean()}
 
     for epoch in range(args.epochs):
         if epoch % 10 == 0:
@@ -246,8 +246,7 @@ def main():
                 loss = compute_loss(labels=labels[:, 1:], logits=logits, mask=labels_mask[:, 1:])
                 metrics['loss'].update(loss.data.cpu().numpy())
 
-                cer, wer = compute_score(labels=labels[:, 1:], logits=logits, vocab=train_dataset.vocab, pool=pool)
-                metrics['cer'].update(cer)
+                wer = compute_score(labels=labels[:, 1:], logits=logits, vocab=train_dataset.vocab, pool=pool)
                 metrics['wer'].update(wer)
 
         eval_loss = metrics['loss'].compute_and_reset()
@@ -255,7 +254,6 @@ def main():
         eval_writer.add_scalar('loss', eval_loss, global_step=epoch)
         # eval_writer.add_scalar('score', eval_score, global_step=epoch)
 
-        eval_writer.add_scalar('cer', metrics['cer'].compute_and_reset(), global_step=epoch)
         eval_writer.add_scalar('wer', metrics['wer'].compute_and_reset(), global_step=epoch)
 
         save_model(model_to_save, experiment_path)

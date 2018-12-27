@@ -166,14 +166,14 @@ class DeepConv1dRNNEncoder(nn.Module):
             modules.ResidualBlockBasic1d(256, 256))
 
         self.rnn = nn.GRU(256, size // 2, num_layers=3, batch_first=True, bidirectional=True)
-        self.norm = nn.LayerNorm(size)  # TODO:
+        # self.norm = nn.LayerNorm(size)  # TODO:
 
     def forward(self, input):
         input = input.permute(0, 2, 1)
         input = self.conv(input)
         input = input.permute(0, 2, 1)
         input, last_hidden = self.rnn(input)
-        input = self.norm(input)
+        # input = self.norm(input)
 
         return input, last_hidden
 
@@ -198,7 +198,7 @@ class AttentionDecoder(nn.Module):
         # context, _ = self.attention(last_hidden, features)
 
         # hidden = None
-        hidden = torch.cat([last_hidden[0], last_hidden[1]], -1)
+        hidden = torch.cat([last_hidden[0], last_hidden[1]], -1)  # TODO:
         outputs = []
         weights = []
 
@@ -260,48 +260,6 @@ class HybridAttentionDecoder(nn.Module):
         return outputs, weights
 
 
-class SimpleDecoder(nn.Module):
-    def __init__(self, size, vocab_size):
-        super().__init__()
-
-        self.embedding = nn.Embedding(vocab_size, size, padding_idx=0)
-        self.rnn = nn.GRUCell(size, size)
-        self.output = nn.Linear(size, vocab_size)
-
-    def forward(self, input, features, last_hidden):
-        embeddings = self.embedding(input)
-        last_hidden = torch.cat([last_hidden[0], last_hidden[1]], -1)
-        # last_hidden = self.project_hidden(last_hidden)
-
-        # TODO: better init
-        # context = torch.zeros(embeddings.size(0), embeddings.size(2)).to(embeddings.device)
-        # context = last_hidden.sum(0)
-        # context, _ = self.attention(torch.zeros(input.size(0), self.rnn.hidden_size).to(input.device), features)
-        # context, _ = self.attention(last_hidden, features)
-
-        # hidden = None
-        hidden = last_hidden
-        outputs = []
-        # weights = []
-
-        for t in range(embeddings.size(1)):
-            # input = torch.cat([embeddings[:, t, :], context], 1)
-            input = embeddings[:, t, :]
-            hidden = self.rnn(input, hidden)
-            output = hidden
-            # context, weight = self.attention(output, features)
-            # output = torch.cat([output, context], 1)
-            output = self.output(output)
-            outputs.append(output)
-            # weights.append(weight.squeeze(-1))
-
-        outputs = torch.stack(outputs, 1)
-        # weights = torch.stack(weights, 1)
-        weights = torch.zeros(features.size(0), 10, 10)  # placeholder
-
-        return outputs, weights
-
-
 class DeepAttentionDecoder(nn.Module):
     def __init__(self, size, vocab_size):
         super().__init__()
@@ -314,8 +272,6 @@ class DeepAttentionDecoder(nn.Module):
 
     def forward(self, input, features, last_hidden):
         embeddings = self.embedding(input)
-        # last_hidden = torch.cat([last_hidden[0], last_hidden[1]], -1)
-        # last_hidden = self.project_hidden(last_hidden)
 
         # TODO: better init
         context = torch.zeros(embeddings.size(0), embeddings.size(2)).to(embeddings.device)
@@ -323,8 +279,10 @@ class DeepAttentionDecoder(nn.Module):
         # context, _ = self.attention(torch.zeros(input.size(0), self.rnn.hidden_size).to(input.device), features)
         # context, _ = self.attention(last_hidden, features)
 
-        hidden_1 = None
+        # hidden_1 = None
         hidden_2 = None
+        hidden_1 = torch.cat([last_hidden[0], last_hidden[1]], -1)
+        # hidden_2 = torch.cat([last_hidden[0], last_hidden[1]], -1)
         outputs = []
         weights = []
 
