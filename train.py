@@ -128,6 +128,7 @@ def build_parser():
     parser.add_argument('--bs', type=int, default=32)
     parser.add_argument('--epochs', type=int, default=500)
     parser.add_argument('--size', type=int, default=256)
+    parser.add_argument('--clip-norm', type=float)
     parser.add_argument('--workers', type=int, default=os.cpu_count())
     parser.add_argument('--sched', type=int, default=10)
     parser.add_argument('--seed', type=int, default=42)
@@ -205,6 +206,8 @@ def main():
 
             optimizer.zero_grad()
             loss.mean().backward()
+            if args.clip_norm is not None:
+                nn.utils.clip_grad_norm_(model.parameters(), args.clip_norm)
             optimizer.step()
 
         train_writer.add_scalar('loss', metrics['loss'].compute_and_reset(), global_step=epoch)
