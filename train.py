@@ -61,7 +61,8 @@ def compute_score(labels, logits, vocab, pool):
 
     refs = [take_until_token(true.tolist(), vocab.eos_id) for true in true]
     hyps = [take_until_token(pred.tolist(), vocab.eos_id) for pred in pred]
-    cers = pool.starmap(word_error_rate, zip(refs, hyps))
+    # cers = pool.starmap(word_error_rate, zip(refs, hyps))
+    cers = [200]  # TODO:
 
     refs = map(lambda ref: chars_to_words(vocab.decode(ref)), refs)
     hyps = map(lambda hyp: chars_to_words(vocab.decode(hyp)), hyps)
