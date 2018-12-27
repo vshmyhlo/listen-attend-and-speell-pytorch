@@ -189,7 +189,6 @@ class AttentionDecoder(nn.Module):
 
     def forward(self, input, features, last_hidden):
         embeddings = self.embedding(input)
-        # last_hidden = torch.cat([last_hidden[0], last_hidden[1]], -1)
         # last_hidden = self.project_hidden(last_hidden)
 
         # TODO: better init
@@ -198,8 +197,8 @@ class AttentionDecoder(nn.Module):
         # context, _ = self.attention(torch.zeros(input.size(0), self.rnn.hidden_size).to(input.device), features)
         # context, _ = self.attention(last_hidden, features)
 
-        hidden = None
-        # hidden = last_hidden
+        # hidden = None
+        hidden = torch.cat([last_hidden[0], last_hidden[1]], -1)
         outputs = []
         weights = []
 
