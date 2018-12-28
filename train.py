@@ -12,7 +12,7 @@ import logging
 import numpy as np
 import argparse
 from tqdm import tqdm
-from dataset import TrainEvalDataset, MEAN, STD
+from dataset import TrainEvalDataset
 from model import Model
 import torch.nn.functional as F
 from metrics import word_error_rate
@@ -37,18 +37,6 @@ def take_until_token(seq, token):
         return seq
 
 
-# def compute_score(labels, logits, vocab):
-#     true = labels.data.cpu().numpy()
-#     logits = logits.data.cpu().numpy()
-#     pred = np.argmax(logits, -1)
-#     wers = [
-#         word_error_rate(
-#             ref=take_until_token(true.tolist(), vocab.eos_id),
-#             hyp=take_until_token(pred.tolist(), vocab.eos_id))
-#         for true, pred in zip(true, pred)]
-#
-#     return wers
-
 def chars_to_words(seq):
     return ''.join(seq).split(' ')
 
@@ -61,8 +49,6 @@ def compute_score(labels, logits, vocab, pool):
 
     refs = [take_until_token(true.tolist(), vocab.eos_id) for true in true]
     hyps = [take_until_token(pred.tolist(), vocab.eos_id) for pred in pred]
-    # cers = pool.starmap(word_error_rate, zip(refs, hyps))
-    # cers = [200]  # TODO:
 
     refs = map(lambda ref: chars_to_words(vocab.decode(ref)), refs)
     hyps = map(lambda hyp: chars_to_words(vocab.decode(hyp)), hyps)
@@ -107,18 +93,6 @@ def compute_loss(labels, logits, mask):
     return loss
 
 
-# def compute_loss(labels, logits, mask):
-#     b, t = labels.size()
-#     labels = labels.contiguous().view(b * t)
-#     logits = logits.contiguous().view(b * t, logits.size(2))
-#
-#     loss = F.cross_entropy(input=logits, target=labels, reduction='none')
-#     loss = loss.view(b, t)
-#     loss = (loss * mask).sum(-1) # TODO: mean?
-#
-#     return loss
-
-
 def build_parser():
     parser = argparse.ArgumentParser()
     parser.add_argument('--experiment-path', type=str, default='./tf_log')
@@ -146,7 +120,6 @@ def main():
     fix_seed(args.seed)
 
     train_dataset = TrainEvalDataset(args.dataset_path, subset='train-clean-100')
-    # train_dataset = TrainEvalDataset(args.dataset_path, subset='dev-clean')
     train_data_loader = torch.utils.data.DataLoader(
         train_dataset,
         batch_size=args.bs,
@@ -216,11 +189,7 @@ def main():
             'learning_rate',
             np.squeeze([param_group['lr'] for param_group in optimizer.param_groups]),
             global_step=epoch)
-        # spectras_norm = (spectras.permute(0, 2, 1).unsqueeze(1).cpu() * STD + MEAN) / 80 + 1
-        # train_writer.add_image('spectras', torchvision.utils.make_grid(spectras_norm, nrow=1), global_step=epoch)
-
         spectras_norm = spectras.permute(0, 2, 1).unsqueeze(1).cpu()
-        # spectras_norm = (spectras - spectras.min()) / (spectras.max() - spectras.min())
         train_writer.add_image(
             'spectras', torchvision.utils.make_grid(spectras_norm, nrow=1, normalize=True), global_step=epoch)
         train_writer.add_image(
