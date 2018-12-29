@@ -114,8 +114,8 @@ class CTCEncoder(nn.Module):
         super().__init__()
 
         self.conv = nn.Sequential(
-            modules.ConvNorm1d(128, 256, 7, padding=3),
-            nn.MaxPool1d(3, 2),
+            modules.ConvNorm1d(128, 256, 7, stride=2, padding=3),
+            # nn.MaxPool1d(3, 2),
             modules.ResidualBlockBasic1d(256, 256),
             modules.ResidualBlockBasic1d(256, 256),
             modules.ResidualBlockBasic1d(256, 256))
@@ -261,6 +261,7 @@ class CTCModel(nn.Module):
         return logits
 
     def compute_seq_lens(self, seq_lens):
+        # TODO: pooling layers
         for m in self.encoder.modules():
             if type(m) == nn.modules.conv.Conv1d:
                 seq_lens = seq_lens + 2 * m.padding[0] - m.dilation[0] * (m.kernel_size[0] - 1) - 1
