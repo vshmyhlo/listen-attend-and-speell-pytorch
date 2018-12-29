@@ -109,6 +109,28 @@ class DeepConv1dRNNEncoder(nn.Module):
         return input, last_hidden
 
 
+class CTCEncoder(nn.Module):
+    def __init__(self, size):
+        super().__init__()
+
+        self.conv = nn.Sequential(
+            modules.ConvNorm1d(128, 256, 7, padding=3),
+            nn.MaxPool1d(3, 2),
+            modules.ResidualBlockBasic1d(256, 256),
+            modules.ResidualBlockBasic1d(256, 256),
+            modules.ResidualBlockBasic1d(256, 256))
+
+        self.rnn = nn.GRU(256, size // 2, num_layers=3, batch_first=True, bidirectional=True)
+
+    def forward(self, input):
+        input = input.permute(0, 2, 1)
+        input = self.conv(input)
+        input = input.permute(0, 2, 1)
+        input, last_hidden = self.rnn(input)
+
+        return input, last_hidden
+
+
 class AttentionDecoder(nn.Module):
     def __init__(self, size, vocab_size):
         super().__init__()
@@ -215,7 +237,7 @@ class Model(nn.Module):
     def __init__(self, size, vocab_size):
         super().__init__()
 
-        self.encoder = DeepConv1dRNNEncoder(size)
+        self.encoder = CTCEncoder(size)
         self.decoder = DeepAttentionDecoder(size, vocab_size)
 
     def forward(self, spectras, seqs):
