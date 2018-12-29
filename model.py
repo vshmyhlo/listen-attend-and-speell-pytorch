@@ -237,7 +237,7 @@ class Model(nn.Module):
     def __init__(self, size, vocab_size):
         super().__init__()
 
-        self.encoder = CTCEncoder(size)
+        self.encoder = DeepConv1dRNNEncoder(size)
         self.decoder = DeepAttentionDecoder(size, vocab_size)
 
     def forward(self, spectras, seqs):
@@ -245,6 +245,20 @@ class Model(nn.Module):
         logits, weights = self.decoder(seqs, features, last_hidden)
 
         return logits, weights
+
+
+class CTCModel(nn.Module):
+    def __init__(self, size, vocab_size):
+        super().__init__()
+
+        self.encoder = CTCEncoder(size)
+        self.logits = nn.Linear(size, vocab_size)
+
+    def forward(self, spectras, seqs):
+        features, last_hidden = self.encoder(spectras)
+        logits = self.logits(features)
+
+        return logits
 
     def compute_seq_lens(self, seq_lens):
         for m in self.encoder.modules():

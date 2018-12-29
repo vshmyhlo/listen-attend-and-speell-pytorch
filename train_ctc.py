@@ -13,7 +13,7 @@ import numpy as np
 import argparse
 from tqdm import tqdm
 from dataset import TrainEvalDataset
-from model import Model
+from model import CTCModel
 import torch.nn.functional as F
 from metrics import word_error_rate
 
@@ -130,7 +130,7 @@ def main():
         collate_fn=collate_fn)
 
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    model = Model(args.size, len(train_dataset.vocab))
+    model = CTCModel(args.size, len(train_dataset.vocab))
     model_to_save = model
     if torch.cuda.device_count() > 1:
         model = nn.DataParallel(model)
