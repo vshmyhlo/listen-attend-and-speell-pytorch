@@ -79,11 +79,10 @@ def collate_fn(samples):
 
 
 def compute_loss(input, target, input_lens, target_lens):
-    assert input_lens.max() <= input.size(1)
-    assert target_lens.max() <= target.size(1)
+    print(input.size(), input_lens.max())
+    print(target.size(), target_lens.max())
 
     input = F.log_softmax(input, -1).permute(1, 0, 2)
-
     loss = F.ctc_loss(log_probs=input, targets=target, input_lengths=input_lens, target_lengths=target_lens)
 
     return loss
