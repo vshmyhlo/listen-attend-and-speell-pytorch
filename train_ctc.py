@@ -166,7 +166,7 @@ def main():
             spectras, spectras_lens = spectras.to(device), spectras_lens.to(device)
 
             labels, labels_lens = labels.to(device), labels_lens.to(device)
-            logits, weights = model(spectras, labels[:, :-1])
+            logits = model(spectras, labels[:, :-1])
             logits_lens = model.compute_seq_lens(spectras_lens)
 
             loss = compute_loss(input=logits, target=labels[:, 1:], input_lens=logits_lens, target_lens=labels_lens)
@@ -186,8 +186,6 @@ def main():
         spectras_norm = spectras.permute(0, 2, 1).unsqueeze(1).cpu()
         train_writer.add_image(
             'spectras', torchvision.utils.make_grid(spectras_norm, nrow=1, normalize=True), global_step=epoch)
-        train_writer.add_image(
-            'weights', torchvision.utils.make_grid(weights.unsqueeze(1).cpu(), nrow=1), global_step=epoch)
 
         for i, (true, pred) in enumerate(zip(
                 labels[:, 1:][:4].detach().data.cpu().numpy(),
@@ -204,7 +202,7 @@ def main():
                     eval_data_loader, desc='epoch {} evaluating'.format(epoch), smoothing=0.1):
                 spectras, spectras_lens = spectras.to(device), spectras_lens.to(device)
                 labels, labels_lens = labels.to(device), labels_lens.to(device)
-                logits, _ = model(spectras, labels[:, :-1])
+                logits = model(spectras, labels[:, :-1])
                 logits_lens = model.compute_seq_lens(spectras_lens)
 
                 loss = compute_loss(
