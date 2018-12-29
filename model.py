@@ -254,7 +254,7 @@ class CTCModel(nn.Module):
         self.encoder = CTCEncoder(size)
         self.logits = nn.Linear(size, vocab_size)
 
-    def forward(self, spectras, seqs):
+    def forward(self, spectras):
         features, last_hidden = self.encoder(spectras)
         logits = self.logits(features)
 

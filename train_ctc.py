@@ -79,9 +79,6 @@ def collate_fn(samples):
 
 
 def compute_loss(input, target, input_lens, target_lens):
-    print(input.size(), input_lens.max())
-    print(target.size(), target_lens.max())
-
     input = F.log_softmax(input, -1).permute(1, 0, 2)
     loss = F.ctc_loss(log_probs=input, targets=target, input_lengths=input_lens, target_lengths=target_lens)
 
@@ -168,10 +165,10 @@ def main():
             spectras, spectras_lens = spectras.to(device), spectras_lens.to(device)
 
             labels, labels_lens = labels.to(device), labels_lens.to(device)
-            logits = model(spectras, labels[:, :-1])
+            logits = model(spectras)
             logits_lens = model.compute_seq_lens(spectras_lens)
 
-            loss = compute_loss(input=logits, target=labels[:, 1:], input_lens=logits_lens, target_lens=labels_lens)
+            loss = compute_loss(input=logits, target=labels, input_lens=logits_lens, target_lens=labels_lens)
             metrics['loss'].update(loss.data.cpu().numpy())
 
             optimizer.zero_grad()
@@ -190,7 +187,7 @@ def main():
             'spectras', torchvision.utils.make_grid(spectras_norm, nrow=1, normalize=True), global_step=epoch)
 
         for i, (true, pred) in enumerate(zip(
-                labels[:, 1:][:4].detach().data.cpu().numpy(),
+                labels[:4].detach().data.cpu().numpy(),
                 np.argmax(logits[:4].detach().data.cpu().numpy(), -1))):
             print('{}:'.format(i))
             text = ''.join(train_dataset.vocab.decode(take_until_token(true.tolist(), train_dataset.vocab.eos_id)))
@@ -204,14 +201,14 @@ def main():
                     eval_data_loader, desc='epoch {} evaluating'.format(epoch), smoothing=0.1):
                 spectras, spectras_lens = spectras.to(device), spectras_lens.to(device)
                 labels, labels_lens = labels.to(device), labels_lens.to(device)
-                logits = model(spectras, labels[:, :-1])
+                logits = model(spectras)
                 logits_lens = model.compute_seq_lens(spectras_lens)
 
                 loss = compute_loss(
-                    input=logits, target=labels[:, 1:], input_lens=logits_lens, target_lens=labels_lens)
+                    input=logits, target=labels, input_lens=logits_lens, target_lens=labels_lens)
                 metrics['loss'].update(loss.data.cpu().numpy())
 
-                wer = compute_score(input=logits, target=labels[:, 1:], vocab=train_dataset.vocab, pool=pool)
+                wer = compute_score(input=logits, target=labels, vocab=train_dataset.vocab, pool=pool)
                 metrics['wer'].update(wer)
 
         eval_loss = metrics['loss'].compute_and_reset()
