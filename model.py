@@ -223,3 +223,14 @@ class Model(nn.Module):
         logits, weights = self.decoder(seqs, features, last_hidden)
 
         return logits, weights
+
+    def compute_seq_lens(self, seq_lens):
+        for m in self.encoder.modules():
+            if type(m) == nn.modules.conv.Conv1d:
+                seq_lens = seq_lens + 2 * m.padding[0] - m.dilation[0] * (m.kernel_size[0] - 1) - 1
+                seq_lens = seq_lens / m.stride[0] + 1
+            elif type(m) == nn.modules.conv.Conv2d:
+                seq_lens = seq_lens + 2 * m.padding[1] - m.dilation[1] * (m.kernel_size[1] - 1) - 1
+                seq_lens = seq_lens / m.stride[1] + 1
+
+        return seq_lens.long()

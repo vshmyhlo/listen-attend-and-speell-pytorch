@@ -57,34 +57,30 @@ def compute_score(input, target, vocab, pool):
 
 
 def pad_and_pack(arrays):
-    sizes = [array.shape[0] for array in arrays]
-    array_masks = np.zeros((len(sizes), max(sizes)))
-    for i, size in enumerate(sizes):
-        array_masks[i, :size] = 1
+    sizes = np.array([array.shape[0] for array in arrays])
 
     arrays = np.array(
         [np.concatenate([array, np.zeros((max(sizes) - array.shape[0], *array.shape[1:]), dtype=array.dtype)], 0)
          for array in arrays])
 
-    return arrays, array_masks
+    return arrays, sizes
 
 
 def collate_fn(samples):
     spectras, seqs = zip(*samples)
 
-    spectras, spectras_mask = pad_and_pack([spectra.T for spectra in spectras])
-    seqs, seqs_mask = pad_and_pack(np.array(seqs))
+    spectras, spectras_lens = pad_and_pack([spectra.T for spectra in spectras])
+    seqs, seqs_lens = pad_and_pack(np.array(seqs))
 
-    spectras, spectras_mask = torch.from_numpy(spectras).float(), torch.from_numpy(spectras_mask).byte()
-    seqs, seqs_mask = torch.from_numpy(seqs).long(), torch.from_numpy(seqs_mask).byte()
+    spectras, spectras_lens = torch.from_numpy(spectras).float(), torch.from_numpy(spectras_lens).long()
+    seqs, seqs_lens = torch.from_numpy(seqs).long(), torch.from_numpy(seqs_lens).long()
 
-    return (spectras, spectras_mask), (seqs, seqs_mask)
+    return (spectras, spectras_lens), (seqs, seqs_lens)
 
 
-def compute_loss(input, target, mask):
-    input = input[mask]
-    target = target[mask]
-    loss = F.cross_entropy(input=input, target=target, reduction='none')
+def compute_loss(input, target, input_lens, target_lens):
+    input = F.log_softmax(input, -1).permute(1, 0, 2)
+    loss = F.ctc_loss(log_probs=input, targets=target, input_lengths=input_lens, target_lengths=target_lens)
 
     return loss
 
@@ -115,7 +111,8 @@ def main():
         args, ignore=['experiment_path', 'restore_path', 'dataset_path', 'epochs', 'workers']))
     fix_seed(args.seed)
 
-    train_dataset = TrainEvalDataset(args.dataset_path, subset='train-clean-100')
+    # train_dataset = TrainEvalDataset(args.dataset_path, subset='train-clean-100')
+    train_dataset = TrainEvalDataset(args.dataset_path, subset='dev-clean')
     train_data_loader = torch.utils.data.DataLoader(
         train_dataset,
         batch_size=args.bs,
@@ -164,14 +161,15 @@ def main():
             logging.info(experiment_path)
 
         model.train()
-        for (spectras, spectras_mask), (labels, labels_mask) in tqdm(
+        for (spectras, spectras_lens), (labels, labels_lens) in tqdm(
                 train_data_loader, desc='epoch {} training'.format(epoch), smoothing=0.1):
-            spectras, spectras_mask = spectras.to(device), spectras_mask.to(device)
+            spectras, spectras_lens = spectras.to(device), spectras_lens.to(device)
 
-            labels, labels_mask = labels.to(device), labels_mask.to(device)
+            labels, labels_lens = labels.to(device), labels_lens.to(device)
             logits, weights = model(spectras, labels[:, :-1])
+            logits_lens = model.compute_seq_lens(spectras_lens)
 
-            loss = compute_loss(input=logits, target=labels[:, 1:], mask=labels_mask[:, 1:])
+            loss = compute_loss(input=logits, target=labels[:, 1:], input_lens=logits_lens, target_lens=labels_lens)
             metrics['loss'].update(loss.data.cpu().numpy())
 
             optimizer.zero_grad()
@@ -202,13 +200,15 @@ def main():
 
         model.eval()
         with torch.no_grad(), Pool(args.workers) as pool:
-            for (spectras, spectras_mask), (labels, labels_mask) in tqdm(
+            for (spectras, spectras_lens), (labels, labels_lens) in tqdm(
                     eval_data_loader, desc='epoch {} evaluating'.format(epoch), smoothing=0.1):
-                spectras, spectras_mask = spectras.to(device), spectras_mask.to(device)
-                labels, labels_mask = labels.to(device), labels_mask.to(device)
+                spectras, spectras_lens = spectras.to(device), spectras_lens.to(device)
+                labels, labels_lens = labels.to(device), labels_lens.to(device)
                 logits, _ = model(spectras, labels[:, :-1])
+                logits_lens = model.compute_seq_lens(spectras_lens)
 
-                loss = compute_loss(input=logits, target=labels[:, 1:], mask=labels_mask[:, 1:])
+                loss = compute_loss(
+                    input=logits, target=labels[:, 1:], input_lens=logits_lens, target_lens=labels_lens)
                 metrics['loss'].update(loss.data.cpu().numpy())
 
                 wer = compute_score(input=logits, target=labels[:, 1:], vocab=train_dataset.vocab, pool=pool)
