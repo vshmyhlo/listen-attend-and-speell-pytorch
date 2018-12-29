@@ -118,6 +118,9 @@ class CTCEncoder(nn.Module):
             # nn.MaxPool1d(3, 2),
             modules.ResidualBlockBasic1d(256, 256),
             modules.ResidualBlockBasic1d(256, 256),
+            modules.ResidualBlockBasic1d(256, 256),
+            modules.ResidualBlockBasic1d(256, 256),
+            modules.ResidualBlockBasic1d(256, 256),
             modules.ResidualBlockBasic1d(256, 256))
 
         self.rnn = nn.GRU(256, size // 2, num_layers=3, batch_first=True, bidirectional=True)
