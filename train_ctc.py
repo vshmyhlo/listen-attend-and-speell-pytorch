@@ -43,9 +43,15 @@ def chars_to_words(seq):
 
 
 def ctc_decode(seq):
-    print(len(seq))
-    print(seq[0])
-    fail
+    result = seq[:1]
+
+    for x in seq[1:]:
+        if result[-1] == x:
+            continue
+        else:
+            result.append(x)
+
+    return result
 
 
 # TODO: check correct truncation
@@ -183,6 +189,8 @@ def main():
             if args.clip_norm is not None:
                 nn.utils.clip_grad_norm_(model.parameters(), args.clip_norm)
             optimizer.step()
+
+            break
 
         train_writer.add_scalar('loss', metrics['loss'].compute_and_reset(), global_step=epoch)
         train_writer.add_scalar(
