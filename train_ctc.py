@@ -43,6 +43,8 @@ def chars_to_words(seq):
 
 
 def ctc_decode(seq):
+    print(seq)
+    fail
     result = seq[:1]
 
     for x in seq[1:]:
@@ -50,6 +52,8 @@ def ctc_decode(seq):
             continue
         else:
             result.append(x)
+
+    result = [x for x in result if x != 0]
 
     return result
 
