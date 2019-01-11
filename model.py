@@ -170,10 +170,6 @@ class CTCEncoder(nn.Module):
         input = input.permute(0, 2, 1)
         input = self.rnn(input)
 
-        print(input.size())
-
-        fail
-
         return input
 
 
