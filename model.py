@@ -72,6 +72,22 @@ class Conv1dRNNEncoder(nn.Module):
 
 
 class DeepConv1dRNNEncoder(nn.Module):
+    # TODO:
+    class RNN(nn.Module):
+        def __init__(self, in_channels, out_channels):
+            super().__init__()
+
+            self.rnn = nn.GRU(in_channels, out_channels, batch_first=True, bidirectional=True)
+            self.norm = nn.BatchNorm1d(out_channels * 2)
+
+        def forward(self, input):
+            input, _ = self.rnn(input)
+            input = input.permute(0, 2, 1)
+            input = self.norm(input)
+            input = input.permute(0, 2, 1)
+
+            return input
+
     def __init__(self, size):
         super().__init__()
 
@@ -138,6 +154,7 @@ class DeepConv1dRNNEncoder(nn.Module):
 #         return input, last_hidden
 
 class CTCEncoder(nn.Module):
+    # TODO:
     class RNN(nn.Module):
         def __init__(self, in_channels, out_channels):
             super().__init__()
