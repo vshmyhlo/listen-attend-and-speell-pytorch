@@ -192,8 +192,6 @@ def main():
                 nn.utils.clip_grad_norm_(model.parameters(), args.clip_norm)
             optimizer.step()
 
-            break
-
         train_writer.add_scalar('loss', metrics['loss'].compute_and_reset(), global_step=epoch)
         train_writer.add_scalar(
             'learning_rate',
