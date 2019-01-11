@@ -143,13 +143,9 @@ class CTCEncoder(nn.Module):
 
         def forward(self, input):
             input, _ = self.rnn(input)
-            print(input.size())
             input = input.permute(0, 2, 1)
-            print(input.size())
             input = self.norm(input)
             input = input.permute(0, 2, 1)
-            print(input.size())
-            fail
 
             return input
 
