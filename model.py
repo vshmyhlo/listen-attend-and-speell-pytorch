@@ -142,7 +142,7 @@ class CTCEncoder(nn.Module):
             self.norm = nn.BatchNorm1d(out_channels)
 
         def forward(self, input):
-            input = self.rnn(input)
+            input, _ = self.rnn(input)
             print(input.size())
             input = input.permute(0, 2, 1)
             print(input.size())
