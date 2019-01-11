@@ -124,7 +124,7 @@ class DeepConv1dRNNEncoder(nn.Module):
         input = input.permute(0, 2, 1)
         input = self.conv(input)
         input = input.permute(0, 2, 1)
-        input, _ = self.rnn(input)
+        input = self.rnn(input)
 
         return input
 
