@@ -18,6 +18,7 @@ import torch.nn.functional as F
 from metrics import word_error_rate
 
 
+# TODO: mask outputs, mask attention, mask etc.
 # TODO: dropout
 # TODO: check targets are correct
 # TODO: pack sequence
@@ -41,6 +42,12 @@ def chars_to_words(seq):
     return ''.join(seq).split(' ')
 
 
+def ctc_decode(seq):
+    print(len(seq))
+    print(seq[0])
+    fail
+
+
 # TODO: check correct truncation
 def compute_score(input, target, vocab, pool):
     pred = np.argmax(input.data.cpu().numpy(), -1)
@@ -49,7 +56,7 @@ def compute_score(input, target, vocab, pool):
     hyps = [take_until_token(pred.tolist(), vocab.eos_id) for pred in pred]
     refs = [take_until_token(true.tolist(), vocab.eos_id) for true in true]
 
-    hyps = map(lambda hyp: chars_to_words(vocab.decode(hyp)), hyps)
+    hyps = map(lambda hyp: chars_to_words(vocab.decode(ctc_decode(hyp))), hyps)
     refs = map(lambda ref: chars_to_words(vocab.decode(ref)), refs)
     wers = pool.starmap(word_error_rate, zip(refs, hyps))
 
@@ -192,7 +199,8 @@ def main():
             print('{}:'.format(i))
             text = ''.join(train_dataset.vocab.decode(take_until_token(true.tolist(), train_dataset.vocab.eos_id)))
             print(colored(text, 'green'))
-            text = ''.join(train_dataset.vocab.decode(take_until_token(pred.tolist(), train_dataset.vocab.eos_id)))
+            text = ''.join(
+                train_dataset.vocab.decode(ctc_decode(take_until_token(pred.tolist(), train_dataset.vocab.eos_id))))
             print(colored(text, 'yellow'))
 
         model.eval()
