@@ -76,8 +76,7 @@ class DeepConv1dRNNEncoder(nn.Module):
         super().__init__()
 
         self.conv = nn.Sequential(
-            # modules.ConvNorm1d(128, 64, 7, stride=2, padding=3),
-            modules.ConvNorm1d(128, 64, 7, stride=1, padding=3),
+            modules.ConvNorm1d(128, 64, 7, stride=2, padding=3),
             nn.MaxPool1d(3, 2),
 
             modules.ResidualBlockBasic1d(64, 64),
@@ -98,15 +97,20 @@ class DeepConv1dRNNEncoder(nn.Module):
             modules.ResidualBlockBasic1d(256, 256),
             modules.ResidualBlockBasic1d(256, 256))
 
-        self.rnn = nn.GRU(256, size // 2, num_layers=3, batch_first=True, bidirectional=True)
+        self.rnn = nn.Sequential(
+            self.RNN(size, size // 2),
+            self.RNN(size, size // 2),
+            self.RNN(size, size // 2),
+            self.RNN(size, size // 2),
+            self.RNN(size, size // 2))
 
     def forward(self, input):
         input = input.permute(0, 2, 1)
         input = self.conv(input)
         input = input.permute(0, 2, 1)
-        input, last_hidden = self.rnn(input)
+        input, _ = self.rnn(input)
 
-        return input, last_hidden
+        return input
 
 
 # class CTCEncoder(nn.Module):
@@ -250,7 +254,7 @@ class DeepAttentionDecoder(nn.Module):
         self.attention = attention.DotProductAttention()
         self.output = nn.Linear(size, vocab_size)
 
-    def forward(self, input, features, last_hidden):
+    def forward(self, input, features):
         embeddings = self.embedding(input)
         context = torch.zeros(embeddings.size(0), embeddings.size(2)).to(embeddings.device)
         hidden_1 = None
@@ -283,8 +287,8 @@ class Model(nn.Module):
         self.decoder = DeepAttentionDecoder(size, vocab_size)
 
     def forward(self, spectras, seqs):
-        features, last_hidden = self.encoder(spectras)
-        logits, weights = self.decoder(seqs, features, last_hidden)
+        features = self.encoder(spectras)
+        logits, weights = self.decoder(seqs, features)
 
         return logits, weights
 
