@@ -6,6 +6,7 @@ import torch.nn as nn
 from ticpfptp.torch import fix_seed, load_weights, save_model
 from ticpfptp.metrics import Mean
 from ticpfptp.format import args_to_string, args_to_path
+from ticpfptp.os import mkdir
 from tensorboardX import SummaryWriter
 import os
 import logging
@@ -18,6 +19,7 @@ import torch.nn.functional as F
 from metrics import word_error_rate
 
 
+# TODO: word-level
 # TODO: dropout
 # TODO: check targets are correct
 # TODO: pack sequence
@@ -42,7 +44,7 @@ def chars_to_words(seq):
 
 
 # TODO: check correct truncation
-def compute_score(input, target, vocab, pool):
+def compute_wer(input, target, vocab, pool):
     pred = np.argmax(input.data.cpu().numpy(), -1)
     true = target.data.cpu().numpy()
 
@@ -154,7 +156,7 @@ def main():
     # training
     train_writer = SummaryWriter(experiment_path)
     eval_writer = SummaryWriter(os.path.join(experiment_path, 'eval'))
-    best_score = 0
+    best_wer = float('inf')
 
     # metrics
     metrics = {'loss': Mean(), 'wer': Mean()}
@@ -211,21 +213,19 @@ def main():
                 loss = compute_loss(input=logits, target=labels[:, 1:], mask=labels_mask[:, 1:])
                 metrics['loss'].update(loss.data.cpu().numpy())
 
-                wer = compute_score(input=logits, target=labels[:, 1:], vocab=train_dataset.vocab, pool=pool)
+                wer = compute_wer(input=logits, target=labels[:, 1:], vocab=train_dataset.vocab, pool=pool)
                 metrics['wer'].update(wer)
 
         eval_loss = metrics['loss'].compute_and_reset()
-        # eval_score = metrics['score'].compute_and_reset()
+        eval_wer = metrics['wer'].compute_and_reset()
         eval_writer.add_scalar('loss', eval_loss, global_step=epoch)
-        # eval_writer.add_scalar('score', eval_score, global_step=epoch)
-
-        eval_writer.add_scalar('wer', metrics['wer'].compute_and_reset(), global_step=epoch)
+        eval_writer.add_scalar('wer', eval_wer, global_step=epoch)
 
         save_model(model_to_save, experiment_path)
         # utils.save_model(model_to_save, utils.mkdir(os.path.join(experiment_path, 'epoch_{}'.format(epoch))))
-        # if eval_score > best_score:
-        #     best_score = eval_score
-        #     save_model(model_to_save, mkdir(os.path.join(experiment_path, 'best')))
+        if eval_wer < best_wer:
+            best_wer = eval_wer
+            save_model(model_to_save, mkdir(os.path.join(experiment_path, 'best')))
 
         scheduler.step(eval_loss)
 
