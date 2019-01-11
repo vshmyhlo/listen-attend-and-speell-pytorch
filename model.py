@@ -93,24 +93,16 @@ class DeepConv1dRNNEncoder(nn.Module):
 
         self.conv = nn.Sequential(
             modules.ConvNorm1d(128, 64, 7, stride=2, padding=3),
-            nn.MaxPool1d(3, 2),
 
-            modules.ResidualBlockBasic1d(64, 64),
-            modules.ResidualBlockBasic1d(64, 64),
+            nn.MaxPool1d(3, 2),
             modules.ResidualBlockBasic1d(64, 64),
 
             modules.ResidualBlockBasic1d(
                 64, 128, stride=2, downsample=modules.ConvNorm1d(64, 128, 3, stride=2, padding=1)),
             modules.ResidualBlockBasic1d(128, 128),
-            modules.ResidualBlockBasic1d(128, 128),
-            modules.ResidualBlockBasic1d(128, 128),
 
             modules.ResidualBlockBasic1d(
                 128, 256, stride=2, downsample=modules.ConvNorm1d(128, 256, 3, stride=2, padding=1)),
-            modules.ResidualBlockBasic1d(256, 256),
-            modules.ResidualBlockBasic1d(256, 256),
-            modules.ResidualBlockBasic1d(256, 256),
-            modules.ResidualBlockBasic1d(256, 256),
             modules.ResidualBlockBasic1d(256, 256))
 
         self.rnn = nn.Sequential(
