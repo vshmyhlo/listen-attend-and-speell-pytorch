@@ -139,7 +139,7 @@ class CTCEncoder(nn.Module):
             super().__init__()
 
             self.rnn = nn.GRU(in_channels, out_channels, batch_first=True, bidirectional=True)
-            self.norm = nn.BatchNorm1d(out_channels)
+            self.norm = nn.BatchNorm1d(out_channels * 2)
 
         def forward(self, input):
             input, _ = self.rnn(input)
