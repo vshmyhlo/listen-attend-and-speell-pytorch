@@ -134,39 +134,49 @@ class DeepConv1dRNNEncoder(nn.Module):
 #         return input, last_hidden
 
 class CTCEncoder(nn.Module):
+    class RNN(nn.Module):
+        def __init__(self, in_channels, out_channels):
+            super().__init__()
+
+            self.rnn = nn.GRU(in_channels, out_channels, batch_first=True, bidirectional=True)
+            self.norm = nn.BatchNorm1d(out_channels)
+
+        def forward(self, input):
+            input = self.rnn(input)
+            print(input.size())
+            input = input.permute(0, 2, 1)
+            print(input.size())
+            input = self.norm(input)
+            input = input.permute(0, 2, 1)
+            print(input.size())
+            fail
+
+            return input
+
     def __init__(self, size):
         super().__init__()
 
         self.conv = nn.Sequential(
-            modules.ConvNorm1d(128, 256, 7, stride=2, padding=3),
-            modules.ResidualBlockBasic1d(256, 256),
-            modules.ResidualBlockBasic1d(256, 256),
-            modules.ResidualBlockBasic1d(256, 256),
-            modules.ResidualBlockBasic1d(256, 256),
-            modules.ResidualBlockBasic1d(256, 256),
-            modules.ResidualBlockBasic1d(256, 256),
-            modules.ResidualBlockBasic1d(256, 256),
-            modules.ResidualBlockBasic1d(256, 256),
-            modules.ResidualBlockBasic1d(256, 256))
+            modules.ConvNorm1d(128, size, 3, padding=1),
+            modules.ConvNorm1d(size, size, 3, padding=1),
+            modules.ConvNorm1d(size, size, 3, stride=2, padding=1))
 
-        self.rnn_1 = nn.GRU(256, size // 2, num_layers=3, batch_first=True, bidirectional=True)
-        self.norm_1 = nn.LayerNorm(size)
-        self.rnn_2 = nn.GRU(256, size // 2, num_layers=3, batch_first=True, bidirectional=True)
-        self.norm_2 = nn.LayerNorm(size)
-        self.rnn_3 = nn.GRU(256, size // 2, num_layers=3, batch_first=True, bidirectional=True)
-        self.norm_3 = nn.LayerNorm(size)
+        self.rnn = nn.Sequential(
+            self.RNN(size, size // 2),
+            self.RNN(size, size // 2),
+            self.RNN(size, size // 2),
+            self.RNN(size, size // 2),
+            self.RNN(size, size // 2))
 
     def forward(self, input):
         input = input.permute(0, 2, 1)
         input = self.conv(input)
         input = input.permute(0, 2, 1)
+        input = self.rnn(input)
 
-        input, _ = self.rnn_1(input)
-        input = self.norm_1(input)
-        input, _ = self.rnn_2(input)
-        input = self.norm_2(input)
-        input, _ = self.rnn_3(input)
-        input = self.norm_3(input)
+        print(input.size())
+
+        fail
 
         return input
 
