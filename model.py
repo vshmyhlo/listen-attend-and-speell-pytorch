@@ -221,7 +221,7 @@ class SimpleAttentionDecoder(nn.Module):
         self.attention = attention.DotProductAttention()
         self.output = nn.Linear(size, vocab_size)
 
-    def forward(self, input, features, last_hidden):
+    def forward(self, input, features):
         embeddings = self.embedding(input)
         context = torch.zeros(embeddings.size(0), embeddings.size(2)).to(embeddings.device)
         hidden = None
