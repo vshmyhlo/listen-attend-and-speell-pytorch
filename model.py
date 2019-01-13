@@ -92,13 +92,13 @@ class DeepConv1dRNNEncoder(nn.Module):
         super().__init__()
 
         self.conv = nn.Sequential(
-            modules.ConvNorm1d(128, 256, 5, padding=3),
-            modules.ConvNorm1d(256, 256, 5, stride=2, padding=3),
-            modules.ConvNorm1d(256, 256, 5, padding=3),
-            modules.ConvNorm1d(256, 256, 5, stride=2, padding=3),
-            modules.ConvNorm1d(256, 256, 5, padding=3),
-            modules.ConvNorm1d(256, 256, 5, stride=2, padding=3),
-            modules.ConvNorm1d(256, 256, 5, padding=3))
+            modules.ConvNorm1d(128, size, 5, padding=3),
+            modules.ConvNorm1d(size, size, 5, stride=2, padding=3),
+            modules.ConvNorm1d(size, size, 5, padding=3),
+            modules.ConvNorm1d(size, size, 5, stride=2, padding=3),
+            modules.ConvNorm1d(size, size, 5, padding=3),
+            modules.ConvNorm1d(size, size, 5, stride=2, padding=3),
+            modules.ConvNorm1d(size, size, 5, padding=3))
 
         self.rnn = nn.Sequential(
             self.RNN(size, size // 2),
