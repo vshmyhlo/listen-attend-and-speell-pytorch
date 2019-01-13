@@ -10,8 +10,8 @@ class QKVScaledDotProductAttention(nn.Module):
 
         # TODO: use bias or norm?
         self.query = nn.Linear(size, size)
-        self.key = nn.Linear(size * 2, size)
-        self.value = nn.Linear(size * 2, size)
+        self.key = nn.Linear(size, size)
+        self.value = nn.Linear(size, size)
 
         # nn.init.normal_(self.query.weight, 0, math.sqrt(2.0 / (size + size)))
         # nn.init.normal_(self.key.weight, 0, math.sqrt(2.0 / (size * 2 + size)))
