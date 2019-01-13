@@ -212,6 +212,38 @@ class AttentionDecoder(nn.Module):
         return outputs, weights
 
 
+class SimpleAttentionDecoder(nn.Module):
+    def __init__(self, size, vocab_size):
+        super().__init__()
+
+        self.embedding = nn.Embedding(vocab_size, size, padding_idx=0)
+        self.rnn = nn.GRUCell(size * 2, size)
+        self.attention = attention.DotProductAttention()
+        self.output = nn.Linear(size, vocab_size)
+
+    def forward(self, input, features, last_hidden):
+        embeddings = self.embedding(input)
+        context = torch.zeros(embeddings.size(0), embeddings.size(2)).to(embeddings.device)
+        hidden = None
+
+        outputs = []
+        weights = []
+
+        for t in range(embeddings.size(1)):
+            input = torch.cat([embeddings[:, t, :], context], 1)
+            hidden = self.rnn(input, hidden)
+            output = hidden
+            context, weight = self.attention(output, features)
+            output = self.output(output)
+            outputs.append(output)
+            weights.append(weight.squeeze(-1))
+
+        outputs = torch.stack(outputs, 1)
+        weights = torch.stack(weights, 1)
+
+        return outputs, weights
+
+
 class HybridAttentionDecoder(nn.Module):
     def __init__(self, size, vocab_size):
         super().__init__()
@@ -286,7 +318,7 @@ class Model(nn.Module):
         super().__init__()
 
         self.encoder = DeepConv1dRNNEncoder(size)
-        self.decoder = DeepAttentionDecoder(size, vocab_size)
+        self.decoder = SimpleAttentionDecoder(size, vocab_size)
 
     def forward(self, spectras, seqs):
         features = self.encoder(spectras)
