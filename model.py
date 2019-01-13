@@ -218,7 +218,8 @@ class SimpleAttentionDecoder(nn.Module):
 
         self.embedding = nn.Embedding(vocab_size, size, padding_idx=0)
         self.rnn = nn.GRUCell(size * 2, size)
-        self.attention = attention.DotProductAttention()
+        # self.attention = attention.DotProductAttention()
+        self.attention = attention.QKVScaledDotProductAttention(size)
         self.output = nn.Linear(size, vocab_size)
 
     def forward(self, input, features):
