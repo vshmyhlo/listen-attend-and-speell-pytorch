@@ -118,19 +118,24 @@ class Conv2dRNNEncoder(nn.Module):
     def __init__(self, size):
         super().__init__()
 
-        self.conv = nn.Sequential(
-            modules.ConvNorm2d(1, 64, 3, padding=1),
-            modules.ResidualBlockBasic2d(
-                64, 64, stride=2, downsample=modules.ConvNorm2d(64, 64, 3, stride=2, padding=1)),
-            modules.ResidualBlockBasic2d(64, 64),
-            modules.ResidualBlockBasic2d(
-                64, 64, stride=2, downsample=modules.ConvNorm2d(64, 64, 3, stride=2, padding=1)),
-            modules.ResidualBlockBasic2d(64, 64),
-            modules.ResidualBlockBasic2d(
-                64, 64, stride=2, downsample=modules.ConvNorm2d(64, 64, 3, stride=2, padding=1)),
-            modules.ResidualBlockBasic2d(64, 64))
+        channels = 32
 
-        self.rnn = nn.GRU(64 * 16, size // 2, num_layers=3, batch_first=True, bidirectional=True)
+        self.conv = nn.Sequential(
+            modules.ConvNorm2d(1, channels, 3, padding=1),
+            modules.ResidualBlockBasic2d(
+                channels, channels, stride=2,
+                downsample=modules.ConvNorm2d(channels, channels, 3, stride=2, padding=1)),
+            modules.ResidualBlockBasic2d(channels, channels),
+            modules.ResidualBlockBasic2d(
+                channels, channels, stride=2,
+                downsample=modules.ConvNorm2d(channels, channels, 3, stride=2, padding=1)),
+            modules.ResidualBlockBasic2d(channels, channels),
+            modules.ResidualBlockBasic2d(
+                channels, channels, stride=2,
+                downsample=modules.ConvNorm2d(channels, channels, 3, stride=2, padding=1)),
+            modules.ResidualBlockBasic2d(channels, channels))
+
+        self.rnn = nn.GRU(channels * 16, size // 2, num_layers=3, batch_first=True, bidirectional=True)
 
     def forward(self, input):
         input = input.permute(0, 2, 1).unsqueeze(1)
