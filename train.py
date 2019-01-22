@@ -19,6 +19,7 @@ import torch.nn.functional as F
 from metrics import word_error_rate
 
 
+# TODO: warmup
 # TODO: word-level
 # TODO: dropout
 # TODO: check targets are correct
