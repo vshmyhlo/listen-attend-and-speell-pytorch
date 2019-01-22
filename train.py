@@ -19,6 +19,7 @@ import torch.nn.functional as F
 from metrics import word_error_rate
 
 
+# TODO: normalization, spectra computing, number of features (freq)
 # TODO: warmup
 # TODO: word-level
 # TODO: dropout
@@ -88,6 +89,7 @@ def compute_loss(input, target, mask):
     input = input[mask]
     target = target[mask]
     loss = F.cross_entropy(input=input, target=target, reduction='none')
+    loss = loss.sum()  # TODO:
 
     return loss
 
