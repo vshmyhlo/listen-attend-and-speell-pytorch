@@ -95,11 +95,11 @@ def collate_fn(samples):
 #     return loss
 
 def compute_loss(input, target, mask):
-    print(mask.size())
-
-    # input = input[mask]
-    # target = target[mask]
+    b, t = mask.size()
+    input = input.view(b * t, input.size(2))
+    target = target.view(b * t)
     loss = F.cross_entropy(input=input, target=target, reduction='none')
+    loss = loss.view(b, t)
     print(loss.size())
     fail
     loss = loss.sum()  # TODO:
