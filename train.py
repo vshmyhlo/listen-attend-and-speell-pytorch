@@ -95,7 +95,7 @@ def collate_fn(samples):
 #     return loss
 
 def compute_loss(input, target, mask):
-    print(input.size(), target.size())
+    print(input.size(), target.size(), mask.size())
     fail
 
     input = input[mask]
