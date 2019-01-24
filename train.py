@@ -98,10 +98,7 @@ def compute_loss(input, target, mask):
     input = input[mask]
     target = target[mask]
     loss = F.cross_entropy(input=input, target=target, reduction='none')
-
-    weight = mask.float()
-    weight = (weight.sum(-1, keepdim=True) / weight.size(0)) * (weight / weight.sum(-1, keepdim=True))
-    weight = weight[mask]
+    weight = mask.float()[mask] / mask.size(0)
     loss = (loss * weight).sum()
 
     return loss
