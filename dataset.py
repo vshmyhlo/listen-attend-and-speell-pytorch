@@ -10,6 +10,7 @@ VOCAB = [
     ' ', "'", 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U',
     'V', 'W', 'X', 'Y', 'Z']
 
+# TODO: preemphasis?
 # TODO: normalize each instancee
 # TODO: mean and std without padding
 # MEAN, STD = -40.6916, 27.8401
@@ -78,8 +79,9 @@ class TrainEvalDataset(torch.utils.data.Dataset):
                 pickle.dump(spectra, f)
 
         # TODO: how to norm?
-        # spectra = (spectra - MEAN) / STD
-        spectra = spectra - spectra.mean()
+        # TODO: norm axis?
+        spectra = (spectra - MEAN) / STD
+        # spectra = spectra - spectra.mean()
 
         syms = [self.vocab.sos_id] + self.vocab.encode(syms) + [self.vocab.eos_id]
         syms = np.array(syms)
