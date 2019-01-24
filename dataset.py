@@ -10,8 +10,7 @@ VOCAB = [
     ' ', "'", 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U',
     'V', 'W', 'X', 'Y', 'Z']
 
-# TODO: use larger batch
-# TODO: specific to spectra
+# TODO: normalize each instancee
 # TODO: mean and std without padding
 # MEAN, STD = -40.6916, 27.8401
 MEAN, STD = -2.2167, 4.6066
@@ -78,7 +77,9 @@ class TrainEvalDataset(torch.utils.data.Dataset):
             with open(spectra_path, 'wb') as f:
                 pickle.dump(spectra, f)
 
-        spectra = (spectra - MEAN) / STD
+        # TODO: how to norm?
+        # spectra = (spectra - MEAN) / STD
+        spectra = spectra - spectra.mean()
 
         syms = [self.vocab.sos_id] + self.vocab.encode(syms) + [self.vocab.eos_id]
         syms = np.array(syms)
@@ -114,10 +115,7 @@ def load_spectra(path):
     n_fft = check_and_round(0.025 / (1 / rate))  # TODO: refactor
     hop_length = check_and_round(0.01 / (1 / rate))  # TODO: refactor
 
-    # spectra = librosa.feature.mfcc(sig, sr=rate, n_mfcc=80, n_fft=n_fft, hop_length=hop_length)
-    # spectra = librosa.feature.melspectrogram(sig, sr=rate, n_mels=80, n_fft=n_fft, hop_length=hop_length)
     spectra = librosa.feature.melspectrogram(sig, sr=rate, n_mels=128, n_fft=n_fft, hop_length=hop_length)
-    # spectra = librosa.power_to_db(spectra, ref=np.max)
-    spectra = np.log(np.maximum(spectra, 1e-7))
+    spectra = np.log(np.maximum(spectra, np.finfo(np.float32).eps))
 
     return spectra
