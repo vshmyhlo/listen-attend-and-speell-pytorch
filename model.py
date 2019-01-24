@@ -93,12 +93,8 @@ class Conv2dRNNEncoder(nn.Module):
     def forward(self, input):
         input = input.permute(0, 2, 1).unsqueeze(1)
         input = self.conv(input)
-        print(input.size())
         input = input.view(input.size(0), input.size(1) * input.size(2), input.size(3))
-        print(input.size())
         input = self.project(input)
-        print(input.size())
-        fail
         input = input.permute(0, 2, 1)
         input, _ = self.rnn(input)
 
