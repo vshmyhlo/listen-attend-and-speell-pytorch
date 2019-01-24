@@ -76,23 +76,18 @@ class Conv2dRNNEncoder(nn.Module):
 
         self.conv = nn.Sequential(
             modules.ConvNorm2d(1, channels, 3, padding=1),
-
             modules.ResidualBlockBasic2d(
                 channels, channels, stride=2,
                 downsample=modules.ConvNorm2d(channels, channels, 3, stride=2, padding=1)),
-            modules.ResidualBlockBasic2d(channels, channels),
-
             modules.ResidualBlockBasic2d(
                 channels, channels, stride=2,
                 downsample=modules.ConvNorm2d(channels, channels, 3, stride=2, padding=1)),
-            modules.ResidualBlockBasic2d(channels, channels),
-
             modules.ResidualBlockBasic2d(
                 channels, channels, stride=2,
                 downsample=modules.ConvNorm2d(channels, channels, 3, stride=2, padding=1)),
-            modules.ResidualBlockBasic2d(channels, channels))
+            modules.ConvNorm2d(channels, size // 16, 1))
 
-        self.rnn = nn.GRU(channels * 16, size // 2, num_layers=3, batch_first=True, bidirectional=True)
+        self.rnn = nn.GRU(size, size // 2, num_layers=3, batch_first=True, bidirectional=True)
 
     def forward(self, input):
         input = input.permute(0, 2, 1).unsqueeze(1)
@@ -201,7 +196,7 @@ class Model(nn.Module):
     def __init__(self, size, vocab_size):
         super().__init__()
 
-        self.encoder = Conv1dRNNEncoder(size)
+        self.encoder = Conv2dRNNEncoder(size)
         self.decoder = AttentionDecoder(size, vocab_size)
 
     def forward(self, spectras, seqs):

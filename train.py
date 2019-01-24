@@ -32,7 +32,6 @@ from metrics import word_error_rate
 # TODO: log ignore keys
 # TODO: pack padded seq for targets
 # TODO: min or max score scheduling
-# TODO: CER, WER, paralellize
 # TODO: normalize spectras
 # TODO: mask attention
 # TODO: loss = F.cross_entropy(pred, gold, ignore_index=Constants.PAD, reduction='sum')

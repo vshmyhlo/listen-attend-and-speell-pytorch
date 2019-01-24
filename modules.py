@@ -118,25 +118,30 @@ class ResidualBlockBasic2d(nn.Module):
         return input
 
 
-class TimeDropout(nn.Module):
-    def __init__(self, p):
+class ResidualBlock2d(nn.Module):
+    def __init__(self, in_channels, out_channels, stride=1, downsample=None):
         super().__init__()
-
-        self.p = p
-        # self.dist = torch.distributions.Categorical([p, 1 - p])
+        self.conv_norm_1 = ConvNorm2d(in_channels, out_channels, 1)
+        self.conv_norm_2 = ConvNorm2d(out_channels, out_channels, 3, stride=stride, padding=1)
+        self.conv_norm_3 = ConvNorm2d(out_channels, out_channels * 4, 1)
+        self.downsample = downsample
 
     def forward(self, input):
-        assert input.dim() == 3
+        residual = input
 
-        if self.training:
-            mask = torch.rand(input.size(0), input.size(1), 1).to(input.device)
-            mask = (mask > self.p).float()
+        input = self.conv_norm_1(input)
+        input = F.relu(input, inplace=True)
 
-            # print(input.size())
-            # print(mask.size())
-            # print(mask.mean())
-            # print(mask.mean() * (1 / (1 - self.p)))
+        input = self.conv_norm_2(input)
+        input = F.relu(input, inplace=True)
 
-            input = (input * mask) * (1 / (1 - self.p))
+        input = self.conv_norm_3(input)
+
+        if self.downsample is not None:
+            input += self.downsample(residual)
+        else:
+            input += residual
+
+        input = F.relu(input, inplace=True)
 
         return input
