@@ -86,7 +86,7 @@ class Conv2dRNNEncoder(nn.Module):
                 channels, channels, stride=2,
                 downsample=modules.ConvNorm2d(channels, channels, 3, stride=2, padding=1)))
 
-        self.project = modules.ConvNorm1d(channels * 16, size, 1)
+        self.project = modules.ConvNorm1d(channels * 10, size, 1)
 
         self.rnn = nn.GRU(size, size // 2, num_layers=3, batch_first=True, bidirectional=True)
 
@@ -96,7 +96,6 @@ class Conv2dRNNEncoder(nn.Module):
         print(input.size())
         input = input.view(input.size(0), input.size(1) * input.size(2), input.size(3))
         print(input.size())
-
         input = self.project(input)
         print(input.size())
         fail

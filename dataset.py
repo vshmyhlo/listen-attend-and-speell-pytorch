@@ -117,7 +117,7 @@ def load_spectra(path):
     n_fft = check_and_round(0.025 / (1 / rate))  # TODO: refactor
     hop_length = check_and_round(0.01 / (1 / rate))  # TODO: refactor
 
-    spectra = librosa.feature.melspectrogram(sig, sr=rate, n_mels=128, n_fft=n_fft, hop_length=hop_length)
+    spectra = librosa.feature.melspectrogram(sig, sr=rate, n_mels=80, n_fft=n_fft, hop_length=hop_length)
     spectra = np.log(np.maximum(spectra, np.finfo(np.float32).eps))
 
     return spectra
