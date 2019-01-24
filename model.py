@@ -201,7 +201,7 @@ class Model(nn.Module):
     def __init__(self, size, vocab_size):
         super().__init__()
 
-        self.encoder = Conv2dRNNEncoder(size)
+        self.encoder = Conv1dRNNEncoder(size)
         self.decoder = AttentionDecoder(size, vocab_size)
 
     def forward(self, spectras, seqs):
