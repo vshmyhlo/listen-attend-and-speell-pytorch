@@ -39,11 +39,11 @@ class PyramidRNNEncoder(nn.Module):
 
 
 class Conv1dRNNEncoder(nn.Module):
-    def __init__(self, size):
+    def __init__(self, features, size):
         super().__init__()
 
         self.conv = nn.Sequential(
-            modules.ConvNorm1d(128, 32, 3, padding=1),
+            modules.ConvNorm1d(features, 32, 3, padding=1),
 
             modules.ResidualBlockBasic1d(
                 32, 64, stride=2, downsample=modules.ConvNorm1d(32, 64, 3, stride=2, padding=1)),
@@ -69,7 +69,7 @@ class Conv1dRNNEncoder(nn.Module):
 
 
 class Conv2dRNNEncoder(nn.Module):
-    def __init__(self, size):
+    def __init__(self, features, size):
         super().__init__()
 
         channels = 32
@@ -86,7 +86,7 @@ class Conv2dRNNEncoder(nn.Module):
                 channels, channels, stride=2,
                 downsample=modules.ConvNorm2d(channels, channels, 3, stride=2, padding=1)))
 
-        self.project = modules.ConvNorm1d(channels * 10, size, 1)
+        self.project = modules.ConvNorm1d(channels * (features // 2**3), size, 1)
 
         self.rnn = nn.GRU(size, size // 2, num_layers=3, batch_first=True, bidirectional=True)
 
@@ -195,10 +195,10 @@ class DeepAttentionDecoder(nn.Module):
 
 
 class Model(nn.Module):
-    def __init__(self, size, vocab_size):
+    def __init__(self, features, size, vocab_size):
         super().__init__()
 
-        self.encoder = Conv2dRNNEncoder(size)
+        self.encoder = Conv2dRNNEncoder(features, size)
         self.decoder = AttentionDecoder(size, vocab_size)
 
     def forward(self, spectras, seqs):
