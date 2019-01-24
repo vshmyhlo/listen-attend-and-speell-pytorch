@@ -46,10 +46,10 @@ class Conv1dRNNEncoder(nn.Module):
         super().__init__()
 
         self.conv = nn.Sequential(
-            modules.ConvNorm1d(128, 64, 7, stride=2, padding=3),
+            modules.ConvNorm1d(128, 32, 3, padding=1),
 
-            nn.MaxPool1d(3, 2),
-            modules.ResidualBlockBasic1d(64, 64),
+            modules.ResidualBlockBasic1d(
+                32, 64, stride=2, downsample=modules.ConvNorm1d(32, 64, 3, stride=2, padding=1)),
             modules.ResidualBlockBasic1d(64, 64),
 
             modules.ResidualBlockBasic1d(
@@ -66,50 +66,7 @@ class Conv1dRNNEncoder(nn.Module):
         input = input.permute(0, 2, 1)
         input = self.conv(input)
         input = input.permute(0, 2, 1)
-        input, last_hidden = self.rnn(input)
-
-        return input, last_hidden
-
-
-class DeepConv1dRNNEncoder(nn.Module):
-    # TODO:
-    class RNN(nn.Module):
-        def __init__(self, in_channels, out_channels):
-            super().__init__()
-
-            self.rnn = nn.GRU(in_channels, out_channels, batch_first=True, bidirectional=True)
-            self.norm = nn.BatchNorm1d(out_channels * 2)
-
-        def forward(self, input):
-            input, _ = self.rnn(input)
-            input = input.permute(0, 2, 1)
-            input = self.norm(input)
-            input = input.permute(0, 2, 1)
-
-            return input
-
-    def __init__(self, size):
-        super().__init__()
-
-        self.conv = nn.Sequential(
-            modules.ConvNorm1d(128, size, 5, padding=3),
-            modules.ConvNorm1d(size, size, 5, stride=2, padding=3),
-            modules.ConvNorm1d(size, size, 5, padding=3),
-            modules.ConvNorm1d(size, size, 5, stride=2, padding=3),
-            modules.ConvNorm1d(size, size, 5, padding=3),
-            modules.ConvNorm1d(size, size, 5, stride=2, padding=3),
-            modules.ConvNorm1d(size, size, 5, padding=3))
-
-        self.rnn = nn.Sequential(
-            self.RNN(size, size // 2),
-            self.RNN(size, size // 2),
-            self.RNN(size, size // 2))
-
-    def forward(self, input):
-        input = input.permute(0, 2, 1)
-        input = self.conv(input)
-        input = input.permute(0, 2, 1)
-        input = self.rnn(input)
+        input, _ = self.rnn(input)
 
         return input
 
@@ -122,14 +79,17 @@ class Conv2dRNNEncoder(nn.Module):
 
         self.conv = nn.Sequential(
             modules.ConvNorm2d(1, channels, 3, padding=1),
+
             modules.ResidualBlockBasic2d(
                 channels, channels, stride=2,
                 downsample=modules.ConvNorm2d(channels, channels, 3, stride=2, padding=1)),
             modules.ResidualBlockBasic2d(channels, channels),
+
             modules.ResidualBlockBasic2d(
                 channels, channels, stride=2,
                 downsample=modules.ConvNorm2d(channels, channels, 3, stride=2, padding=1)),
             modules.ResidualBlockBasic2d(channels, channels),
+
             modules.ResidualBlockBasic2d(
                 channels, channels, stride=2,
                 downsample=modules.ConvNorm2d(channels, channels, 3, stride=2, padding=1)),

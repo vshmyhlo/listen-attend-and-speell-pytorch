@@ -34,6 +34,7 @@ from metrics import word_error_rate
 # TODO: min or max score scheduling
 # TODO: CER, WER, paralellize
 # TODO: normalize spectras
+# TODO: mask attention
 
 def take_until_token(seq, token):
     if token in seq:
