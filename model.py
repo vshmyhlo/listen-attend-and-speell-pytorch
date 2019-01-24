@@ -135,7 +135,7 @@ class AttentionDecoder(nn.Module):
         self.attention = attention.DotProductAttention()
         self.output = nn.Linear(size * 2, vocab_size)
 
-    def forward(self, input, features):
+    def forward(self, input, features, features_mask):
         embeddings = self.embedding(input)
         context = torch.zeros(embeddings.size(0), embeddings.size(2)).to(embeddings.device)
         hidden = None
@@ -147,7 +147,7 @@ class AttentionDecoder(nn.Module):
             input = torch.cat([embeddings[:, t, :], context], 1)
             hidden = self.rnn(input, hidden)
             output = hidden
-            context, weight = self.attention(output, features)
+            context, weight = self.attention(output, features, features_mask)
             output = torch.cat([output, context], 1)
             output = self.output(output)
             outputs.append(output)
@@ -201,9 +201,14 @@ class Model(nn.Module):
         self.encoder = Conv2dRNNEncoder(features, size)
         self.decoder = AttentionDecoder(size, vocab_size)
 
-    def forward(self, spectras, seqs):
+    def forward(self, spectras, spectras_mask, seqs):
         features = self.encoder(spectras)
-        logits, weights = self.decoder(seqs, features)
+
+        features_mask = spectras_mask
+        for _ in range(3):
+            features_mask = features_mask[:, ::2]
+
+        logits, weights = self.decoder(seqs, features, features_mask)
 
         return logits, weights
 
@@ -220,15 +225,3 @@ class CTCModel(nn.Module):
         logits = self.logits(features)
 
         return logits
-
-    def compute_seq_lens(self, seq_lens):
-        # TODO: pooling layers
-        for m in self.encoder.modules():
-            if type(m) == nn.modules.conv.Conv1d:
-                seq_lens = seq_lens + 2 * m.padding[0] - m.dilation[0] * (m.kernel_size[0] - 1) - 1
-                seq_lens = seq_lens / m.stride[0] + 1
-            elif type(m) == nn.modules.conv.Conv2d:
-                seq_lens = seq_lens + 2 * m.padding[1] - m.dilation[1] * (m.kernel_size[1] - 1) - 1
-                seq_lens = seq_lens / m.stride[1] + 1
-
-        return seq_lens.long()

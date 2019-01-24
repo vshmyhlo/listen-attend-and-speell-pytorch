@@ -185,7 +185,7 @@ def main():
             spectras, spectras_mask = spectras.to(device), spectras_mask.to(device)
 
             labels, labels_mask = labels.to(device), labels_mask.to(device)
-            logits, weights = model(spectras, labels[:, :-1])
+            logits, weights = model(spectras, spectras_mask, labels[:, :-1])
 
             loss = compute_loss(input=logits, target=labels[:, 1:], mask=labels_mask[:, 1:])
             metrics['loss'].update(loss.data.cpu().numpy())
@@ -222,7 +222,7 @@ def main():
                     eval_data_loader, desc='epoch {} evaluating'.format(epoch), smoothing=0.1):
                 spectras, spectras_mask = spectras.to(device), spectras_mask.to(device)
                 labels, labels_mask = labels.to(device), labels_mask.to(device)
-                logits, _ = model(spectras, labels[:, :-1])
+                logits, _ = model(spectras, spectras_mask, labels[:, :-1])
 
                 loss = compute_loss(input=logits, target=labels[:, 1:], mask=labels_mask[:, 1:])
                 metrics['loss'].update(loss.data.cpu().numpy())
