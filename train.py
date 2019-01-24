@@ -35,6 +35,8 @@ from metrics import word_error_rate
 # TODO: CER, WER, paralellize
 # TODO: normalize spectras
 # TODO: mask attention
+# TODO: loss = F.cross_entropy(pred, gold, ignore_index=Constants.PAD, reduction='sum')
+
 
 def take_until_token(seq, token):
     if token in seq:
@@ -87,12 +89,19 @@ def collate_fn(samples):
     return (spectras, spectras_mask), (seqs, seqs_mask)
 
 
+# def compute_loss(input, target, mask):
+#     input = input[mask]
+#     target = target[mask]
+#     loss = F.cross_entropy(input=input, target=target, reduction='none')
+#     weight = mask.float()[mask] / mask.size(0)
+#     loss = (loss * weight).sum()
+#
+#     return loss
+
 def compute_loss(input, target, mask):
     input = input[mask]
     target = target[mask]
-    loss = F.cross_entropy(input=input, target=target, reduction='none')
-    weight = mask.float()[mask] / mask.size(0)
-    loss = (loss * weight).sum()
+    loss = F.cross_entropy(input=input, target=target, reduction='sum')
 
     return loss
 
