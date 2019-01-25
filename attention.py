@@ -96,9 +96,7 @@ class ScaledDotProductAttention(nn.Module):
         size = keys.size(2)
         assert size == query.size(1)
         scores = torch.bmm(keys, query) / math.sqrt(size)
-
-        print(scores.size())
-        fail
+        scores = self.scale(scores)
         scores.masked_fill_(features_mask.unsqueeze(-1) == 0, float('-inf'))
 
         weights = scores.softmax(1)
