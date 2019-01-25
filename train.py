@@ -98,9 +98,10 @@ def collate_fn(samples):
 #
 #     return loss
 
-def compute_loss(input, target, mask):
+def compute_loss(input, target, mask, smoothing=0.1):
     input = input[mask]
     target = target[mask]
+    target = (1 - smoothing) * target + smoothing * (1 / input.size(-1))
     loss = F.cross_entropy(input=input, target=target, reduction='sum')
 
     return loss
@@ -133,6 +134,7 @@ def main():
     fix_seed(args.seed)
 
     train_dataset = TrainEvalDataset(args.dataset_path, subset='train-clean-100')
+    # train_dataset = TrainEvalDataset(args.dataset_path, subset='dev-clean')
     train_data_loader = torch.utils.data.DataLoader(
         train_dataset,
         batch_size=args.bs,
