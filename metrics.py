@@ -2,13 +2,14 @@ import numpy as np
 
 
 def edit_distance(ref, hyp):
-    '''
+    """
     This function is to calculate the edit distance of reference sentence and the hypothesis sentence.
     Main algorithm used is dynamic programming.
     Attributes:
         r -> the list of words produced by splitting reference sentence.
         h -> the list of words produced by splitting hypothesis sentence.
-    '''
+    """
+
     dist = np.zeros((len(ref) + 1) * (len(hyp) + 1), dtype=np.uint8).reshape((len(ref) + 1, len(hyp) + 1))
     for i in range(len(ref) + 1):
         for j in range(len(hyp) + 1):
@@ -29,13 +30,14 @@ def edit_distance(ref, hyp):
 
 
 def get_step_list(ref, hyp, dist):
-    '''
+    """
     This function is to get the list of steps in the process of dynamic programming.
     Attributes:
         r -> the list of words produced by splitting reference sentence.
         h -> the list of words produced by splitting hypothesis sentence.
         d -> the matrix built when calulating the editting distance of h and r.
-    '''
+    """
+
     x = len(ref)
     y = len(hyp)
     list = []
@@ -66,6 +68,7 @@ def word_error_rate(ref, hyp):
     This is a function that calculate the word error rate in ASR.
     You can use it like this: wer("what is it".split(), "what is".split())
     """
+
     # build the matrix
     dist = edit_distance(ref, hyp)
 

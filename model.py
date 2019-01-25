@@ -193,7 +193,7 @@ class Model(nn.Module):
         super().__init__()
 
         self.encoder = Conv2dRNNEncoder(features, size)
-        self.decoder = AttentionDecoder(size, vocab_size)
+        self.decoder = DeepAttentionDecoder(size, vocab_size)
 
     def forward(self, spectras, spectras_mask, seqs):
         features = self.encoder(spectras)

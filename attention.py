@@ -32,6 +32,8 @@ class NormalizedLinear(nn.Module):
         return F.linear(input, weight, self.bias)
 
 
+# TODO: init
+# TODO: bias
 class QKVScaledDotProductAttention(nn.Module):
     def __init__(self, size):
         super().__init__()
