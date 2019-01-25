@@ -80,8 +80,8 @@ class TrainEvalDataset(torch.utils.data.Dataset):
 
         # TODO: how to norm?
         # TODO: norm axis?
-        spectra = (spectra - MEAN) / STD
-        # spectra = spectra - spectra.mean()
+        # spectra = (spectra - MEAN) / STD
+        spectra = (spectra - spectra.mean()) / spectra.std()
 
         syms = [self.vocab.sos_id] + self.vocab.encode(syms) + [self.vocab.eos_id]
         syms = np.array(syms)
