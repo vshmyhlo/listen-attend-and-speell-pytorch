@@ -182,10 +182,6 @@ class AdditiveAttention(nn.Module):
             scores = self.project(self.tanh(query + keys + self.bias))
         else:
             scores = self.project(self.tanh(query + keys))
-
-        print(scores.size())
-        fail
-
         scores.masked_fill_(features_mask.unsqueeze(-1) == 0, float('-inf'))
 
         weights = scores.softmax(1)
