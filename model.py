@@ -77,16 +77,16 @@ class Conv2dRNNEncoder(nn.Module):
         self.conv = nn.Sequential(
             modules.ConvNorm2d(1, channels, 3, padding=1),
             modules.ResidualBlockBasic2d(
-                channels, channels, stride=2,
-                downsample=modules.ConvNorm2d(channels, channels, 3, stride=2, padding=1)),
+                channels, channels * 2, stride=2,
+                downsample=modules.ConvNorm2d(channels, channels * 2, 3, stride=2, padding=1)),
             modules.ResidualBlockBasic2d(
-                channels, channels, stride=2,
-                downsample=modules.ConvNorm2d(channels, channels, 3, stride=2, padding=1)),
+                channels * 2, channels * 4, stride=2,
+                downsample=modules.ConvNorm2d(channels * 2, channels * 4, 3, stride=2, padding=1)),
             modules.ResidualBlockBasic2d(
-                channels, channels, stride=2,
-                downsample=modules.ConvNorm2d(channels, channels, 3, stride=2, padding=1)))
+                channels * 4, channels * 8, stride=2,
+                downsample=modules.ConvNorm2d(channels * 4, channels * 8, 3, stride=2, padding=1)))
 
-        self.project = modules.ConvNorm1d(channels * (features // 2**3), size, 1)
+        self.project = modules.ConvNorm1d(channels * 8 * (features // 2**3), size, 1)
 
         self.rnn = nn.GRU(size, size // 2, num_layers=3, batch_first=True, bidirectional=True)
 
