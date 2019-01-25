@@ -41,6 +41,14 @@ class QKVScaledDotProductAttention(nn.Module):
 
 
 class DotProductAttention(nn.Module):
+    def __init__(self, scale=True):
+        super().__init__()
+
+        if scale:
+            self.scale = nn.Linear(1, 1, bias=False)
+        else:
+            self.scale = None
+
     def forward(self, input, features, features_mask):
         query = input.unsqueeze(-1)
         keys = features
@@ -49,6 +57,8 @@ class DotProductAttention(nn.Module):
         size = keys.size(2)
         assert size == query.size(1)
         scores = torch.bmm(keys, query)
+        if self.scale is not None:
+            scores = self.scale(scores)
         scores.masked_fill_(features_mask.unsqueeze(-1) == 0, float('-inf'))
 
         weights = scores.softmax(1)
@@ -95,7 +105,7 @@ class ScaledDotProductAttention(nn.Module):
 
         size = keys.size(2)
         assert size == query.size(1)
-        scores = torch.bmm(keys, query) / math.sqrt(size)
+        scores = torch.bmm(keys, query)
         scores = self.scale(scores)
         scores.masked_fill_(features_mask.unsqueeze(-1) == 0, float('-inf'))
 
