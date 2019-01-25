@@ -101,7 +101,7 @@ def collate_fn(samples):
 def compute_loss(input, target, mask, smoothing=0.1):
     input = input[mask]
     target = target[mask]
-    target = (1 - smoothing) * target + smoothing * (1 / input.size(-1))
+    # target = (1 - smoothing) * target + smoothing * (1 / input.size(-1))
     loss = F.cross_entropy(input=input, target=target, reduction='sum')
 
     return loss
