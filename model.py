@@ -72,21 +72,16 @@ class Conv2dRNNEncoder(nn.Module):
     def __init__(self, features, size):
         super().__init__()
 
-        channels = 32
-
         self.conv = nn.Sequential(
-            modules.ConvNorm2d(1, channels, 3, padding=1),
+            modules.ConvNorm2d(1, 32, 3, padding=1),
             modules.ResidualBlockBasic2d(
-                channels, channels * 2, stride=2,
-                downsample=modules.ConvNorm2d(channels, channels * 2, 3, stride=2, padding=1)),
+                32, 64, stride=2, downsample=modules.ConvNorm2d(32, 64, 3, stride=2, padding=1)),
             modules.ResidualBlockBasic2d(
-                channels * 2, channels * 4, stride=2,
-                downsample=modules.ConvNorm2d(channels * 2, channels * 4, 3, stride=2, padding=1)),
+                64, 128, stride=2, downsample=modules.ConvNorm2d(64, 128, 3, stride=2, padding=1)),
             modules.ResidualBlockBasic2d(
-                channels * 4, channels * 8, stride=2,
-                downsample=modules.ConvNorm2d(channels * 4, channels * 8, 3, stride=2, padding=1)))
+                128, 256, stride=2, downsample=modules.ConvNorm2d(128, 256, 3, stride=2, padding=1)))
 
-        self.project = modules.ConvNorm1d(channels * 8 * (features // 2**3), size, 1)
+        self.project = modules.ConvNorm1d(256 * (features // 2**3), size, 1)
 
         self.rnn = nn.GRU(size, size // 2, num_layers=3, batch_first=True, bidirectional=True)
 
@@ -132,7 +127,7 @@ class AttentionDecoder(nn.Module):
 
         self.embedding = nn.Embedding(vocab_size, size, padding_idx=0)
         self.rnn = nn.GRUCell(size * 2, size)
-        self.attention = attention.DotProductAttention()
+        self.attention = attention.ScaledDotProductAttention()
         self.output = nn.Linear(size * 2, vocab_size)
 
     def forward(self, input, features, features_mask):
@@ -166,10 +161,10 @@ class DeepAttentionDecoder(nn.Module):
         self.embedding = nn.Embedding(vocab_size, size, padding_idx=0)
         self.rnn_1 = nn.GRUCell(size * 2, size)
         self.rnn_2 = nn.GRUCell(size * 2, size)
-        self.attention = attention.DotProductAttention()
+        self.attention = attention.ScaledDotProductAttention()
         self.output = nn.Linear(size, vocab_size)
 
-    def forward(self, input, features):
+    def forward(self, input, features, features_mask):
         embeddings = self.embedding(input)
         context = torch.zeros(embeddings.size(0), embeddings.size(2)).to(embeddings.device)
         hidden_1 = None
@@ -181,7 +176,7 @@ class DeepAttentionDecoder(nn.Module):
         for t in range(embeddings.size(1)):
             input = torch.cat([embeddings[:, t, :], context], 1)
             hidden_1 = self.rnn_1(input, hidden_1)
-            context, weight = self.attention(hidden_1, features)
+            context, weight = self.attention(hidden_1, features, features_mask)
             output = torch.cat([hidden_1, context], 1)
             hidden_2 = self.rnn_2(output, hidden_2)
             output = self.output(hidden_2)

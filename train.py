@@ -19,6 +19,7 @@ import torch.nn.functional as F
 from metrics import word_error_rate
 
 
+# TODO: use import scipy.io.wavfile as wav
 # TODO: transformer loss sum
 # TODO: normalization, spectra computing, number of features (freq)
 # TODO: warmup
