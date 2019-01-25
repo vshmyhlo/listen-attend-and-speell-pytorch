@@ -127,7 +127,7 @@ class AttentionDecoder(nn.Module):
 
         self.embedding = nn.Embedding(vocab_size, size, padding_idx=0)
         self.rnn = nn.GRUCell(size * 2, size)
-        self.attention = attention.ScaledDotProductAttention()
+        self.attention = attention.AdditiveAttention(size)
         self.output = nn.Linear(size * 2, vocab_size)
 
     def forward(self, input, features, features_mask):
@@ -141,9 +141,8 @@ class AttentionDecoder(nn.Module):
         for t in range(embeddings.size(1)):
             input = torch.cat([embeddings[:, t, :], context], 1)
             hidden = self.rnn(input, hidden)
-            output = hidden
-            context, weight = self.attention(output, features, features_mask)
-            output = torch.cat([output, context], 1)
+            context, weight = self.attention(hidden, features, features_mask)
+            output = torch.cat([hidden, context], 1)
             output = self.output(output)
             outputs.append(output)
             weights.append(weight.squeeze(-1))
@@ -161,7 +160,7 @@ class DeepAttentionDecoder(nn.Module):
         self.embedding = nn.Embedding(vocab_size, size, padding_idx=0)
         self.rnn_1 = nn.GRUCell(size * 2, size)
         self.rnn_2 = nn.GRUCell(size * 2, size)
-        self.attention = attention.ScaledDotProductAttention()
+        self.attention = attention.AdditiveAttention(size)
         self.output = nn.Linear(size, vocab_size)
 
     def forward(self, input, features, features_mask):
