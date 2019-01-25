@@ -100,59 +100,6 @@ class DotProductAttention(nn.Module):
         return context, weights
 
 
-# class ScaledDotProductAttention(nn.Module):
-#     def forward(self, input, features, features_mask):
-#         query = input.unsqueeze(-1)
-#         keys = features
-#         values = features
-#         del input, features
-#
-#         size = keys.size(2)
-#         assert size == query.size(1)
-
-#         scores = torch.bmm(keys, query) / math.sqrt(size)
-#         scores.masked_fill_(features_mask.unsqueeze(-1) == 0, float('-inf'))
-#
-#         weights = scores.softmax(1)
-#         context = (values * weights).sum(1)
-#
-#         return context, weights
-
-
-# if scale:
-#     # Scalar used in weight scaling
-#     g = variable_scope.get_variable(
-#         "attention_g", dtype=dtype,
-#         initializer=init_ops.ones_initializer, shape=())
-#     score = g * score
-#   return score
-
-class ScaledDotProductAttention(nn.Module):
-    def __init__(self):
-        super().__init__()
-
-        self.scale = nn.Linear(1, 1, bias=False)
-
-    def forward(self, input, features, features_mask):
-        query = input.unsqueeze(-1)
-        keys = features
-        values = features
-        del input, features
-
-        size = keys.size(2)
-        assert size == query.size(1)
-
-        scores = torch.bmm(keys, query)
-        scores = self.scale(scores)
-        scores.masked_fill_(features_mask.unsqueeze(-1) == 0, float('-inf'))
-
-        weights = scores.softmax(1)
-        context = (values * weights).sum(1)
-
-        return context, weights
-
-
-# TODO: valid normalization
 class AdditiveAttention(nn.Module):
     def __init__(self, size, normalize=True):
         super().__init__()
