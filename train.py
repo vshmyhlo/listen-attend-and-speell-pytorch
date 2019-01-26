@@ -106,7 +106,7 @@ def collate_fn(samples):
 #
 #     return loss
 
-def compute_loss(input, target, mask, smoothing=0.1):
+def compute_loss(input, target, mask, smoothing):
     input = input[mask]
     target = target[mask]
     num_classes = input.size(-1)
@@ -128,6 +128,8 @@ def build_parser():
     parser.add_argument('--epochs', type=int, default=500)
     parser.add_argument('--size', type=int, default=256)
     parser.add_argument('--clip-norm', type=float)
+    parser.add_argument('--label-smoothing', type=float, default=0.1)
+    parser.add_argument('--attention-type', type=str, default='luong', choices=['luong', 'bahdanau', 'qkv'])
     parser.add_argument('--workers', type=int, default=os.cpu_count())
     parser.add_argument('--sched', type=int, default=10)
     parser.add_argument('--seed', type=int, default=42)
@@ -200,7 +202,8 @@ def main():
             labels, labels_mask = labels.to(device), labels_mask.to(device)
             logits, weights = model(spectras, spectras_mask, labels[:, :-1])
 
-            loss = compute_loss(input=logits, target=labels[:, 1:], mask=labels_mask[:, 1:])
+            loss = compute_loss(
+                input=logits, target=labels[:, 1:], mask=labels_mask[:, 1:], smoothing=args.label_smoothing)
             metrics['loss'].update(loss.data.cpu().numpy())
 
             optimizer.zero_grad()
@@ -237,7 +240,8 @@ def main():
                 labels, labels_mask = labels.to(device), labels_mask.to(device)
                 logits, _ = model(spectras, spectras_mask, labels[:, :-1])
 
-                loss = compute_loss(input=logits, target=labels[:, 1:], mask=labels_mask[:, 1:])
+                loss = compute_loss(
+                    input=logits, target=labels[:, 1:], mask=labels_mask[:, 1:], smoothing=args.label_smoothing)
                 metrics['loss'].update(loss.data.cpu().numpy())
 
                 wer = compute_wer(input=logits, target=labels[:, 1:], vocab=train_dataset.vocab, pool=pool)
