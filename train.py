@@ -110,8 +110,8 @@ def compute_loss(input, target, mask, smoothing=0.1):
     input = input[mask]
     target = target[mask]
     num_classes = input.size(-1)
-    target = (1 - smoothing) * target + smoothing * (1 / num_classes)
     target = one_hot(target, num_classes)
+    target = (1 - smoothing) * target + smoothing * (1 / num_classes)
     loss = -(F.log_softmax(input, -1) * target).sum(-1).sum()
 
     return loss
