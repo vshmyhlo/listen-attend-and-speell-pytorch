@@ -127,7 +127,7 @@ class AttentionDecoder(nn.Module):
 
         self.embedding = nn.Embedding(vocab_size, size, padding_idx=0)
         self.rnn = nn.GRUCell(size * 2, size)
-        self.attention = attention.AdditiveAttention(size)
+        self.attention = attention.DotProductAttention(size)
         self.output = nn.Linear(size * 2, vocab_size)
 
     def forward(self, input, features, features_mask):
@@ -160,7 +160,7 @@ class DeepAttentionDecoder(nn.Module):
         self.embedding = nn.Embedding(vocab_size, size, padding_idx=0)
         self.rnn_1 = nn.GRUCell(size * 2, size)
         self.rnn_2 = nn.GRUCell(size * 2, size)
-        self.attention = attention.AdditiveAttention(size)
+        self.attention = attention.DotProductAttention(size)
         self.output = nn.Linear(size, vocab_size)
 
     def forward(self, input, features, features_mask):
