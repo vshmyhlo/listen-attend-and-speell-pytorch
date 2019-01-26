@@ -3,7 +3,7 @@ import torchvision
 from termcolor import colored
 from multiprocessing import Pool
 import torch.nn as nn
-from ticpfptp.torch import fix_seed, load_weights, save_model
+from ticpfptp.torch import fix_seed, load_weights, save_model, one_hot
 from ticpfptp.metrics import Mean
 from ticpfptp.format import args_to_string, args_to_path
 from ticpfptp.os import mkdir
@@ -98,11 +98,19 @@ def collate_fn(samples):
 #
 #     return loss
 
+# def compute_loss(input, target, mask, smoothing=0.1):
+#     input = input[mask]
+#     target = target[mask]
+#     # target = (1 - smoothing) * target + smoothing * (1 / input.size(-1))
+#     loss = F.cross_entropy(input=input, target=target, reduction='sum')
+#
+#     return loss
+
 def compute_loss(input, target, mask, smoothing=0.1):
     input = input[mask]
     target = target[mask]
-    # target = (1 - smoothing) * target + smoothing * (1 / input.size(-1))
-    loss = F.cross_entropy(input=input, target=target, reduction='sum')
+    target = (1 - smoothing) * target + smoothing * (1 / input.size(-1))
+    loss = -(F.log_softmax(input, -1) * target).sum(-1).sum()
 
     return loss
 
