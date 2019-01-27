@@ -143,7 +143,7 @@ def main():
         s += ((spectra - mean)**2).sum()
         n += spectra.size
 
-    std = s / n
+    std = np.sqrt(s / n)
 
     print('mean {:.4f}'.format(mean))
     print('std {:.4f}'.format(std))
