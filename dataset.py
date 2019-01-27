@@ -130,7 +130,6 @@ def main():
 
     s = 0
     n = 0
-
     for spectra, _ in tqdm(train_dataset, desc='loading data'):
         s += spectra.sum()
         n += spectra.size
@@ -139,7 +138,6 @@ def main():
 
     s = 0
     n = 0
-
     for spectra, _ in tqdm(train_dataset, desc='loading data'):
         s += ((spectra - mean)**2).sum()
         n += spectra.size

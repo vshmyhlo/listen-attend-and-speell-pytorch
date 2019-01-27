@@ -131,7 +131,7 @@ def build_parser():
     parser.add_argument('--size', type=int, default=256)
     parser.add_argument('--clip-norm', type=float)
     parser.add_argument('--lab-smooth', type=float, default=0.1)
-    parser.add_argument('--attention-type', type=str, default='luong', choices=['luong', 'bahdanau'])
+    parser.add_argument('--attn-type', type=str, default='luong', choices=['luong', 'bahdanau'])
     parser.add_argument('--workers', type=int, default=os.cpu_count())
     parser.add_argument('--sched', type=int, default=10)
     parser.add_argument('--seed', type=int, default=42)
