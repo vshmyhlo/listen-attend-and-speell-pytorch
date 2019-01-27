@@ -134,7 +134,8 @@ def main():
         s += spectra.sum()
         n += spectra.size
 
-    print(s, n)
+    mean = s / n
+    print('mean {}'.format(mean))
 
 
 if __name__ == '__main__':
