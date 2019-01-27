@@ -1,3 +1,4 @@
+from tqdm import tqdm
 import librosa
 from ticpfptp.os import mkdir
 import pickle
@@ -81,7 +82,7 @@ class TrainEvalDataset(torch.utils.data.Dataset):
         # TODO: how to norm?
         # TODO: norm axis?
         # spectra = (spectra - MEAN) / STD
-        spectra = (spectra - spectra.mean()) / spectra.std()
+        # spectra = (spectra - spectra.mean()) / spectra.std()
 
         syms = [self.vocab.sos_id] + self.vocab.encode(syms) + [self.vocab.eos_id]
         syms = np.array(syms)
@@ -121,3 +122,21 @@ def load_spectra(path):
     spectra = np.log(np.maximum(spectra, np.finfo(np.float32).eps))
 
     return spectra
+
+
+def main():
+    train_dataset = TrainEvalDataset('./data/LibriSpeech', subset='train-clean-100')
+
+    spectras = []
+
+    for spectra, _ in tqdm(train_dataset, desc='loading data'):
+        spectras.append(spectra)
+
+    spectras = np.concatenate(spectras, 1)
+
+    print(spectras.shape)
+    fail
+
+
+if __name__ == '__main__':
+    main()
