@@ -135,7 +135,18 @@ def main():
         n += spectra.size
 
     mean = s / n
-    print('mean {}'.format(mean))
+
+    s = 0
+    n = 0
+
+    for spectra, _ in tqdm(train_dataset, desc='loading data'):
+        s += ((spectra - mean)**2).sum()
+        n += spectra.size
+
+    std = s / n
+
+    print('mean {:.4f}'.format(mean))
+    print('std {:.4f}'.format(std))
 
 
 if __name__ == '__main__':
