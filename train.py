@@ -19,6 +19,7 @@ import torch.nn.functional as F
 from metrics import word_error_rate
 
 
+# TODO: configure attention type
 # TODO: use import scipy.io.wavfile as wav
 # TODO: transformer loss sum
 # TODO: normalization, spectra computing, number of features (freq)
@@ -36,6 +37,7 @@ from metrics import word_error_rate
 # TODO: normalize spectras
 # TODO: mask attention
 # TODO: loss = F.cross_entropy(pred, gold, ignore_index=Constants.PAD, reduction='sum')
+# TODO: compute norm mean and std
 
 
 def take_until_token(seq, token):
