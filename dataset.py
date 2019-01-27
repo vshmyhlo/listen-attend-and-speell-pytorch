@@ -15,7 +15,8 @@ VOCAB = [
 # TODO: normalize each instancee
 # TODO: mean and std without padding
 # MEAN, STD = -40.6916, 27.8401
-MEAN, STD = -2.2167, 4.6066
+# MEAN, STD = -2.2167, 4.6066
+MEAN, STD = -9.8716, 4.1460
 
 
 class Vocab(object):
@@ -81,7 +82,7 @@ class TrainEvalDataset(torch.utils.data.Dataset):
 
         # TODO: how to norm?
         # TODO: norm axis?
-        # spectra = (spectra - MEAN) / STD
+        spectra = (spectra - MEAN) / STD
         # spectra = (spectra - spectra.mean()) / spectra.std()
 
         syms = [self.vocab.sos_id] + self.vocab.encode(syms) + [self.vocab.eos_id]
