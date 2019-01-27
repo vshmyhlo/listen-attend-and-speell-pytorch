@@ -127,15 +127,14 @@ def load_spectra(path):
 def main():
     train_dataset = TrainEvalDataset('./data/LibriSpeech', subset='train-clean-100')
 
-    spectras = []
+    s = 0
+    n = 0
 
     for spectra, _ in tqdm(train_dataset, desc='loading data'):
-        spectras.append(spectra)
+        s += spectra.sum()
+        n += spectra.size
 
-    spectras = np.concatenate(spectras, 1)
-
-    print(spectras.shape)
-    fail
+    print(s, n)
 
 
 if __name__ == '__main__':
