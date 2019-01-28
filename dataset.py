@@ -7,6 +7,7 @@ import numpy as np
 import torch.utils.data
 import os
 
+# TODO: check vocab
 VOCAB = [
     ' ', "'", 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U',
     'V', 'W', 'X', 'Y', 'Z']
@@ -45,11 +46,11 @@ class Vocab(object):
 
 
 class TrainEvalDataset(torch.utils.data.Dataset):
-    def __init__(self, path, subset):
+    def __init__(self, path, subset, vocab):
         self.path = path
         self.subset = subset
         self.data = self.load_data(os.path.join(path, subset))
-        self.vocab = Vocab(VOCAB)
+        self.vocab = vocab
 
     # def __getitem__(self, item):
     #     speaker, chapter, id, syms = self.data[item]

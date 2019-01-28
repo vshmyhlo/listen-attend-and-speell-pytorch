@@ -13,7 +13,7 @@ import logging
 import numpy as np
 import argparse
 from tqdm import tqdm
-from dataset import TrainEvalDataset
+from dataset import TrainEvalDataset, Vocab, VOCAB
 from model import Model
 import torch.nn.functional as F
 from metrics import word_error_rate
@@ -147,9 +147,11 @@ def main():
         args, ignore=['experiment_path', 'restore_path', 'dataset_path', 'epochs', 'workers']))
     fix_seed(args.seed)
 
+    vocab = Vocab(VOCAB)
+
     train_dataset = torch.utils.data.ConcatDataset([
-        TrainEvalDataset(args.dataset_path, subset='train-clean-100'),
-        TrainEvalDataset(args.dataset_path, subset='train-clean-360')
+        TrainEvalDataset(args.dataset_path, subset='train-clean-100', vocab=vocab),
+        TrainEvalDataset(args.dataset_path, subset='train-clean-360', vocab=vocab)
     ])
     train_data_loader = torch.utils.data.DataLoader(
         train_dataset,
@@ -159,7 +161,7 @@ def main():
         collate_fn=collate_fn,
         drop_last=True)
 
-    eval_dataset = TrainEvalDataset(args.dataset_path, subset='dev-clean')
+    eval_dataset = TrainEvalDataset(args.dataset_path, subset='dev-clean', vocab=vocab)
     eval_data_loader = torch.utils.data.DataLoader(
         eval_dataset,
         batch_size=args.bs,
@@ -168,7 +170,7 @@ def main():
         collate_fn=collate_fn)
 
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    model = Model(80, args.size, len(train_dataset.vocab))
+    model = Model(80, args.size, len(vocab))
     model_to_save = model
     if torch.cuda.device_count() > 1:
         model = nn.DataParallel(model)
@@ -231,9 +233,9 @@ def main():
                 labels[:, 1:][:4].detach().data.cpu().numpy(),
                 np.argmax(logits[:4].detach().data.cpu().numpy(), -1))):
             print('{}:'.format(i))
-            text = ''.join(train_dataset.vocab.decode(take_until_token(true.tolist(), train_dataset.vocab.eos_id)))
+            text = ''.join(vocab.decode(take_until_token(true.tolist(), vocab.eos_id)))
             print(colored(text, 'green'))
-            text = ''.join(train_dataset.vocab.decode(take_until_token(pred.tolist(), train_dataset.vocab.eos_id)))
+            text = ''.join(vocab.decode(take_until_token(pred.tolist(), vocab.eos_id)))
             print(colored(text, 'yellow'))
 
         model.eval()
@@ -248,7 +250,7 @@ def main():
                     input=logits, target=labels[:, 1:], mask=labels_mask[:, 1:], smoothing=args.lab_smooth)
                 metrics['loss'].update(loss.data.cpu().numpy())
 
-                wer = compute_wer(input=logits, target=labels[:, 1:], vocab=train_dataset.vocab, pool=pool)
+                wer = compute_wer(input=logits, target=labels[:, 1:], vocab=vocab, pool=pool)
                 metrics['wer'].update(wer)
 
         eval_loss = metrics['loss'].compute_and_reset()
