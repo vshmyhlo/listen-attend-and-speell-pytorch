@@ -70,15 +70,18 @@ class TrainEvalDataset(torch.utils.data.Dataset):
             mkdir(os.path.join(self.path, '{}-spectra'.format(self.subset), speaker, chapter)),
             '{}.pickle'.format(id))
 
-        if os.path.exists(spectra_path):
-            with open(spectra_path, 'rb') as f:
-                spectra = pickle.load(f)
-        else:
-            path = os.path.join(self.path, self.subset, speaker, chapter, '{}.flac'.format(id))
-            spectra = load_spectra(path)
+        # if os.path.exists(spectra_path):
+        #     with open(spectra_path, 'rb') as f:
+        #         spectra = pickle.load(f)
+        # else:
+        #     path = os.path.join(self.path, self.subset, speaker, chapter, '{}.flac'.format(id))
+        #     spectra = load_spectra(path)
+        #
+        #     with open(spectra_path, 'wb') as f:
+        #         pickle.dump(spectra, f)
 
-            with open(spectra_path, 'wb') as f:
-                pickle.dump(spectra, f)
+        path = os.path.join(self.path, self.subset, speaker, chapter, '{}.flac'.format(id))
+        spectra = load_spectra(path)
 
         # TODO: how to norm?
         # TODO: norm axis?
