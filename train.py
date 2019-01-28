@@ -147,8 +147,10 @@ def main():
         args, ignore=['experiment_path', 'restore_path', 'dataset_path', 'epochs', 'workers']))
     fix_seed(args.seed)
 
-    train_dataset = TrainEvalDataset(args.dataset_path, subset='train-clean-100')
-    # train_dataset = TrainEvalDataset(args.dataset_path, subset='dev-clean')
+    train_dataset = torch.utils.data.ConcatDataset([
+        TrainEvalDataset(args.dataset_path, subset='train-clean-100'),
+        TrainEvalDataset(args.dataset_path, subset='train-clean-360')
+    ])
     train_data_loader = torch.utils.data.DataLoader(
         train_dataset,
         batch_size=args.bs,
