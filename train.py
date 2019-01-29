@@ -127,9 +127,8 @@ def build_parser():
     parser.add_argument('--lr', type=float, default=0.2)
     parser.add_argument('--opt', type=str, choices=['adam', 'momentum'], default='momentum')
     parser.add_argument('--bs', type=int, default=32)
-    parser.add_argument('--epochs', type=int, default=500)
+    parser.add_argument('--epochs', type=int, default=1000)
     parser.add_argument('--size', type=int, default=256)
-    parser.add_argument('--clip-norm', type=float)
     parser.add_argument('--lab-smooth', type=float, default=0.1)
     parser.add_argument('--attn-type', type=str, default='luong', choices=['luong', 'bahdanau'])
     parser.add_argument('--workers', type=int, default=os.cpu_count())
@@ -214,8 +213,6 @@ def main():
 
             optimizer.zero_grad()
             loss.mean().backward()
-            if args.clip_norm is not None:
-                nn.utils.clip_grad_norm_(model.parameters(), args.clip_norm)
             optimizer.step()
 
         train_writer.add_scalar('loss', metrics['loss'].compute_and_reset(), global_step=epoch)

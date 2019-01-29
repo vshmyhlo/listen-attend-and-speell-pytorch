@@ -118,7 +118,6 @@ def check_and_round(x):
 
 
 def load_spectra(path):
-    # sig, rate = librosa.core.load(path, sr=None)
     sig, rate = soundfile.read(path, dtype=np.float32)
     n_fft = check_and_round(0.025 / (1 / rate))  # TODO: refactor
     hop_length = check_and_round(0.01 / (1 / rate))  # TODO: refactor
