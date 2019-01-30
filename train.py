@@ -91,30 +91,14 @@ def collate_fn(samples):
     return (spectras, spectras_mask), (seqs, seqs_mask)
 
 
-# def compute_loss(input, target, mask):
-#     input = input[mask]
-#     target = target[mask]
-#     loss = F.cross_entropy(input=input, target=target, reduction='none')
-#     weight = mask.float()[mask] / mask.size(0)
-#     loss = (loss * weight).sum()
-#
-#     return loss
-
-# def compute_loss(input, target, mask, smoothing=0.1):
-#     input = input[mask]
-#     target = target[mask]
-#     # target = (1 - smoothing) * target + smoothing * (1 / input.size(-1))
-#     loss = F.cross_entropy(input=input, target=target, reduction='sum')
-#
-#     return loss
-
 def compute_loss(input, target, mask, smoothing):
     input = input[mask]
     target = target[mask]
     num_classes = input.size(-1)
     target = one_hot(target, num_classes)
     target = (1 - smoothing) * target + smoothing * (1 / num_classes)
-    loss = -(F.log_softmax(input, -1) * target).sum(-1).sum()
+    loss = -(F.log_softmax(input, -1) * target).sum()
+    loss = loss / mask.size(0)
 
     return loss
 
