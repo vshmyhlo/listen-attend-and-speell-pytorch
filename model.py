@@ -42,7 +42,7 @@ class PyramidRNNEncoder(nn.Module):
 
 
 class Conv2dRNNEncoder(nn.Module):
-    def __init__(self, in_features, out_features, num_layers):
+    def __init__(self, in_features, out_features, num_layers, pool=True):
         super().__init__()
 
         base = 32
@@ -60,15 +60,20 @@ class Conv2dRNNEncoder(nn.Module):
                 base * 4, base * 8, stride=2,
                 downsample=modules.ConvNorm2d(base * 4, base * 8, 3, stride=2, padding=1)))
 
-        self.project = nn.Sequential(
-            modules.ConvNorm1d(base * 8 * (in_features // 2**3), out_features, 1),
-            nn.ReLU(inplace=True))
+        if pool:
+            self.project = nn.Sequential(
+                nn.MaxPool2d((in_features // 2**3, 1), 1),
+                modules.ConvNorm2d(base * 8, out_features, 1),
+                nn.ReLU(inplace=True))
+        else:
+            raise NotImplementedError()
+       
         self.rnn = nn.GRU(out_features, out_features // 2, num_layers=num_layers, batch_first=True, bidirectional=True)
 
     def forward(self, input):
         input = self.conv(input)
-        input = input.view(input.size(0), input.size(1) * input.size(2), input.size(3))
         input = self.project(input)
+        input = input.squeeze(2)
         input = input.permute(0, 2, 1)
         input, _ = self.rnn(input)
 
@@ -167,7 +172,11 @@ class Model(nn.Module):
         spectras = self.spectra(sigs)
         features = self.encoder(spectras)
 
+        # r = sigs.size(1) / features.size(1)
+        # features_mask = sigs_mask[:, ::math.floor(r)]
+        # features_mask = features_mask[:, :features.size(1)]
         features_mask = None
+
         logits, weights = self.decoder(seqs, features, features_mask)
 
         etc = {

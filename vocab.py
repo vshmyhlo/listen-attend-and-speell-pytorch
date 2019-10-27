@@ -33,11 +33,11 @@ class CharVocab(object):
 
 
 class WordVocab(object):
-    def __init__(self, syms):
+    def __init__(self, syms, size):
         counter = Counter()
         for s in tqdm(syms, desc='building vocab'):
             counter.update(s.split())
-        vocab = [key for key, _ in counter.most_common(25000)]
+        vocab = [key for key, _ in counter.most_common(size)]
         print('vocab size: {}'.format(len(vocab)))
         vocab = ['<p>', '<unk>', '<s>', '</s>'] + list(vocab)
 

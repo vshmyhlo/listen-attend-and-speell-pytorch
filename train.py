@@ -25,7 +25,7 @@ from metrics import word_error_rate
 from model import Model
 from sampler import BatchSampler
 from transforms import LoadSignal, ApplyTo, Extract, VocabEncode, ToTensor
-from vocab import WordVocab
+from vocab import CHAR_VOCAB, CharVocab
 
 
 # TODO: preemphasis?
@@ -152,8 +152,8 @@ def main():
         load_data(os.path.join(args.dataset_path, 'dev-clean'), workers=args.workers),
     ])
 
-    # vocab = CharVocab(CHAR_VOCAB)
-    vocab = WordVocab(train_data['syms'])
+    vocab = CharVocab(CHAR_VOCAB)
+    # vocab = WordVocab(train_data['syms'])
     train_transform = T.Compose([
         ApplyTo(['sig'], T.Compose([
             LoadSignal(SAMPLE_RATE),
