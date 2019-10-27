@@ -1,43 +1,50 @@
+import argparse
+import itertools
+import logging
+import math
+import os
+import time
+from multiprocessing import Pool
+
+import numpy as np
+import pandas as pd
+import torch.nn as nn
 import torch.utils.data
 import torchvision
-from termcolor import colored
-from multiprocessing import Pool
-import torch.nn as nn
-from ticpfptp.torch import fix_seed, load_weights, save_model, one_hot
-from ticpfptp.metrics import Mean
-from ticpfptp.format import args_to_string, args_to_path
-from ticpfptp.os import mkdir
+import torchvision.transforms as T
 from tensorboardX import SummaryWriter
-import os
-import logging
-import numpy as np
-import argparse
+from termcolor import colored
+from ticpfptp.format import args_to_string
+from ticpfptp.metrics import Mean
+from ticpfptp.os import mkdir
+from ticpfptp.torch import fix_seed, load_weights, save_model
 from tqdm import tqdm
-from dataset import TrainEvalDataset, Vocab, VOCAB
-from model import Model
-import torch.nn.functional as F
+
+from dataset import TrainEvalDataset, SAMPLE_RATE, load_data
 from metrics import word_error_rate
+from model import Model
+from sampler import BatchSampler
+from transforms import LoadSignal, ApplyTo, Extract, VocabEncode, ToTensor
+from vocab import WordVocab
 
 
+# TODO: preemphasis?
 # TODO: configure attention type
 # TODO: use import scipy.io.wavfile as wav
+# TODO: bucketing
 # TODO: transformer loss sum
 # TODO: normalization, spectra computing, number of features (freq)
 # TODO: warmup
-# TODO: word-level
 # TODO: dropout
 # TODO: check targets are correct
 # TODO: pack sequence
 # TODO: per freq norm
 # TODO: mask attention
-# TODO: rescale loss on batch size
 # TODO: log ignore keys
 # TODO: pack padded seq for targets
 # TODO: min or max score scheduling
-# TODO: normalize spectras
 # TODO: mask attention
 # TODO: loss = F.cross_entropy(pred, gold, ignore_index=Constants.PAD, reduction='sum')
-# TODO: compute norm mean and std
 
 
 def take_until_token(seq, token):
@@ -45,10 +52,6 @@ def take_until_token(seq, token):
         return seq[:seq.index(token)]
     else:
         return seq
-
-
-def chars_to_words(seq):
-    return ''.join(seq).split(' ')
 
 
 # TODO: check correct truncation
@@ -59,46 +62,61 @@ def compute_wer(input, target, vocab, pool):
     hyps = [take_until_token(pred.tolist(), vocab.eos_id) for pred in pred]
     refs = [take_until_token(true.tolist(), vocab.eos_id) for true in true]
 
-    hyps = map(lambda hyp: chars_to_words(vocab.decode(hyp)), hyps)
-    refs = map(lambda ref: chars_to_words(vocab.decode(ref)), refs)
+    hyps = map(lambda hyp: vocab.decode(hyp).split(), hyps)
+    refs = map(lambda ref: vocab.decode(ref).split(), refs)
     wers = pool.starmap(word_error_rate, zip(refs, hyps))
 
     return wers
 
 
-def pad_and_pack(arrays):
-    sizes = [array.shape[0] for array in arrays]
-    array_masks = np.zeros((len(sizes), max(sizes)))
-    for i, size in enumerate(sizes):
-        array_masks[i, :size] = 1
+def compute_nrow(images):
+    b, _, h, w = images.size()
+    nrow = math.ceil(math.sqrt(h * b / w))
 
-    arrays = np.array(
-        [np.concatenate([array, np.zeros((max(sizes) - array.shape[0], *array.shape[1:]), dtype=array.dtype)], 0)
-         for array in arrays])
-
-    return arrays, array_masks
+    return nrow
 
 
-def collate_fn(samples):
-    spectras, seqs = zip(*samples)
+def pad_and_pack(tensors):
+    sizes = [t.shape[0] for t in tensors]
 
-    spectras, spectras_mask = pad_and_pack([spectra.T for spectra in spectras])
-    seqs, seqs_mask = pad_and_pack(np.array(seqs))
+    tensor = torch.zeros(
+        len(sizes), max(sizes), dtype=tensors[0].dtype, layout=tensors[0].layout, device=tensors[0].device)
+    mask = torch.zeros(
+        len(sizes), max(sizes), dtype=torch.bool, layout=tensors[0].layout, device=tensors[0].device)
 
-    spectras, spectras_mask = torch.from_numpy(spectras).float(), torch.from_numpy(spectras_mask).byte()
-    seqs, seqs_mask = torch.from_numpy(seqs).long(), torch.from_numpy(seqs_mask).byte()
+    for i, t in enumerate(tensors):
+        tensor[i, :t.size(0)] = t
+        mask[i, :t.size(0)] = True
 
-    return (spectras, spectras_mask), (seqs, seqs_mask)
+    return tensor, mask
+
+
+def collate_fn(batch):
+    sigs, syms = list(zip(*batch))
+
+    sigs, sigs_mask = pad_and_pack(sigs)
+    syms, syms_mask = pad_and_pack(syms)
+
+    return (sigs, syms), (sigs_mask, syms_mask)
+
+
+def one_hot(input, num_classes):
+    input = torch.eye(num_classes, dtype=torch.float, device=input.device)[input]
+
+    return input
+
+
+def softmax_cross_entropy(input, target, axis=1, keepdim=False):
+    log_prob = input.log_softmax(axis)
+    loss = -(target * log_prob).sum(axis, keepdim=keepdim)
+
+    return loss
 
 
 def compute_loss(input, target, mask, smoothing):
-    input = input[mask]
-    target = target[mask]
-    num_classes = input.size(-1)
-    target = one_hot(target, num_classes)
-    target = (1 - smoothing) * target + smoothing * (1 / num_classes)
-    loss = -(F.log_softmax(input, -1) * target).sum()
-    loss = loss / mask.size(0)
+    target = one_hot(target, input.size(2))
+    loss = softmax_cross_entropy(input=input, target=target, axis=2)
+    loss = (loss * mask.float()).sum(1)
 
     return loss
 
@@ -108,11 +126,10 @@ def build_parser():
     parser.add_argument('--experiment-path', type=str, default='./tf_log')
     parser.add_argument('--restore-path', type=str)
     parser.add_argument('--dataset-path', type=str, default='./data')
-    parser.add_argument('--lr', type=float, default=0.2)
-    parser.add_argument('--opt', type=str, choices=['adam', 'momentum'], default='momentum')
+    parser.add_argument('--lr', type=float, default=1e-3)
+    parser.add_argument('--opt', type=str, choices=['adam', 'momentum'], default='adam')
     parser.add_argument('--bs', type=int, default=32)
-    parser.add_argument('--epochs', type=int, default=1000)
-    parser.add_argument('--size', type=int, default=256)
+    parser.add_argument('--epochs', type=int, default=100)
     parser.add_argument('--lab-smooth', type=float, default=0.1)
     parser.add_argument('--workers', type=int, default=os.cpu_count())
     parser.add_argument('--sched', type=int, default=10)
@@ -125,34 +142,49 @@ def main():
     logging.basicConfig(level=logging.INFO)
     args = build_parser().parse_args()
     logging.info(args_to_string(args))
-    experiment_path = os.path.join(args.experiment_path, args_to_path(
-        args, ignore=['experiment_path', 'restore_path', 'dataset_path', 'epochs', 'workers']))
     fix_seed(args.seed)
 
-    vocab = Vocab(VOCAB)
-
-    train_dataset = torch.utils.data.ConcatDataset([
-        TrainEvalDataset(args.dataset_path, subset='train-clean-100', vocab=vocab),
-        TrainEvalDataset(args.dataset_path, subset='train-clean-360', vocab=vocab)
+    train_data = pd.concat([
+        load_data(os.path.join(args.dataset_path, 'train-clean-100'), workers=args.workers),
+        load_data(os.path.join(args.dataset_path, 'train-clean-360'), workers=args.workers),
     ])
+    eval_data = pd.concat([
+        load_data(os.path.join(args.dataset_path, 'dev-clean'), workers=args.workers),
+    ])
+
+    # vocab = CharVocab(CHAR_VOCAB)
+    vocab = WordVocab(train_data['syms'])
+    train_transform = T.Compose([
+        ApplyTo(['sig'], T.Compose([
+            LoadSignal(SAMPLE_RATE),
+            ToTensor(),
+        ])),
+        ApplyTo(['syms'], T.Compose([
+            VocabEncode(vocab),
+            ToTensor(),
+        ])),
+        Extract(['sig', 'syms']),
+
+    ])
+    eval_transform = train_transform
+
+    train_dataset = TrainEvalDataset(train_data, transform=train_transform)
+    eval_dataset = TrainEvalDataset(eval_data, transform=eval_transform)
+
     train_data_loader = torch.utils.data.DataLoader(
         train_dataset,
-        batch_size=args.bs,
-        shuffle=True,
+        batch_sampler=BatchSampler(train_data, batch_size=args.bs, shuffle=True, drop_last=True),
         num_workers=args.workers,
-        collate_fn=collate_fn,
-        drop_last=True)
+        collate_fn=collate_fn)
 
-    eval_dataset = TrainEvalDataset(args.dataset_path, subset='dev-clean', vocab=vocab)
     eval_data_loader = torch.utils.data.DataLoader(
         eval_dataset,
-        batch_size=args.bs,
-        shuffle=False,
+        batch_sampler=BatchSampler(eval_data, batch_size=args.bs),
         num_workers=args.workers,
         collate_fn=collate_fn)
 
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    model = Model(80, args.size, len(vocab))
+    model = Model(SAMPLE_RATE, len(vocab))
     model_to_save = model
     if torch.cuda.device_count() > 1:
         model = nn.DataParallel(model)
@@ -160,71 +192,96 @@ def main():
     if args.restore_path is not None:
         load_weights(model_to_save, args.restore_path)
 
-    lr = args.lr / 32 / 32 * args.bs
     if args.opt == 'adam':
-        optimizer = torch.optim.Adam(model.parameters(), lr, weight_decay=1e-4)
+        optimizer = torch.optim.Adam(model.parameters(), args.lr, weight_decay=1e-4)
     elif args.opt == 'momentum':
-        optimizer = torch.optim.SGD(model.parameters(), lr, momentum=0.9, weight_decay=1e-4)
+        optimizer = torch.optim.SGD(model.parameters(), args.lr, momentum=0.9, weight_decay=1e-4)
     else:
         raise AssertionError('invalid optimizer {}'.format(args.opt))
 
-    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', factor=0.5, patience=args.sched)
+    # scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', factor=0.5, patience=args.sched)
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, 500 * args.epochs)
 
-    # training
-    train_writer = SummaryWriter(experiment_path)
-    eval_writer = SummaryWriter(os.path.join(experiment_path, 'eval'))
+    # main loop
+    train_writer = SummaryWriter(os.path.join(args.experiment_path, 'train'))
+    eval_writer = SummaryWriter(os.path.join(args.experiment_path, 'eval'))
     best_wer = float('inf')
-
-    # metrics
-    metrics = {'loss': Mean(), 'wer': Mean()}
 
     for epoch in range(args.epochs):
         if epoch % 10 == 0:
-            logging.info(experiment_path)
+            logging.info(args.experiment_path)
+
+        # training
+        metrics = {
+            'loss': Mean(),
+            'fps': Mean(),
+        }
 
         model.train()
-        for (spectras, spectras_mask), (labels, labels_mask) in tqdm(
-                train_data_loader, desc='epoch {} training'.format(epoch), smoothing=0.1):
-            spectras, spectras_mask = spectras.to(device), spectras_mask.to(device)
+        t1 = time.time()
+        for (sigs, labels), (sigs_mask, labels_mask) in tqdm(
+                itertools.islice(train_data_loader, 500), total=500, desc='epoch {} training'.format(epoch),
+                smoothing=0.01):
+            sigs, labels = sigs.to(device), labels.to(device)
+            sigs_mask, labels_mask = sigs_mask.to(device), labels_mask.to(device)
 
-            labels, labels_mask = labels.to(device), labels_mask.to(device)
-            logits, weights = model(spectras, spectras_mask, labels[:, :-1])
+            logits, etc = model(sigs, sigs_mask, labels[:, :-1])
 
             loss = compute_loss(
                 input=logits, target=labels[:, 1:], mask=labels_mask[:, 1:], smoothing=args.lab_smooth)
             metrics['loss'].update(loss.data.cpu().numpy())
 
+            lr = np.squeeze(scheduler.get_lr())
+
             optimizer.zero_grad()
             loss.mean().backward()
             optimizer.step()
+            scheduler.step()
 
-        train_writer.add_scalar('loss', metrics['loss'].compute_and_reset(), global_step=epoch)
-        train_writer.add_scalar(
-            'learning_rate',
-            np.squeeze([param_group['lr'] for param_group in optimizer.param_groups]),
-            global_step=epoch)
-        spectras_norm = spectras.permute(0, 2, 1).unsqueeze(1).cpu()
-        train_writer.add_image(
-            'spectras', torchvision.utils.make_grid(spectras_norm, nrow=1, normalize=True), global_step=epoch)
-        train_writer.add_image(
-            'weights', torchvision.utils.make_grid(weights.unsqueeze(1).cpu(), nrow=1), global_step=epoch)
+            t2 = time.time()
+            metrics['fps'].update(1 / ((t2 - t1) / sigs.size(0)))
+            t1 = t2
 
-        for i, (true, pred) in enumerate(zip(
-                labels[:, 1:][:4].detach().data.cpu().numpy(),
-                np.argmax(logits[:4].detach().data.cpu().numpy(), -1))):
-            print('{}:'.format(i))
-            text = ''.join(vocab.decode(take_until_token(true.tolist(), vocab.eos_id)))
-            print(colored(text, 'green'))
-            text = ''.join(vocab.decode(take_until_token(pred.tolist(), vocab.eos_id)))
-            print(colored(text, 'yellow'))
+        with torch.no_grad():
+            metrics = {k: metrics[k].compute_and_reset() for k in metrics}
+            print('[EPOCH {}][TRAIN] {}'.format(
+                epoch, ', '.join('{}: {:.4f}'.format(k, metrics[k]) for k in metrics)))
+            for k in metrics:
+                train_writer.add_scalar(k, metrics[k], global_step=epoch)
+            train_writer.add_scalar('learning_rate', lr, global_step=epoch)
+
+            train_writer.add_image(
+                'spectras',
+                torchvision.utils.make_grid(etc['spectras'], nrow=compute_nrow(etc['spectras']), normalize=True),
+                global_step=epoch)
+            train_writer.add_image(
+                'weights',
+                torchvision.utils.make_grid(etc['weights'], nrow=compute_nrow(etc['weights']), normalize=True),
+                global_step=epoch)
+
+            for i, (true, pred) in enumerate(zip(
+                    labels[:, 1:][:4].detach().data.cpu().numpy(),
+                    np.argmax(logits[:4].detach().data.cpu().numpy(), -1))):
+                print('{}:'.format(i))
+                text = vocab.decode(take_until_token(true.tolist(), vocab.eos_id))
+                print(colored(text, 'green'))
+                text = vocab.decode(take_until_token(pred.tolist(), vocab.eos_id))
+                print(colored(text, 'yellow'))
+
+        # evaluation
+        metrics = {
+            'loss': Mean(),
+            'wer': Mean(),
+        }
 
         model.eval()
         with torch.no_grad(), Pool(args.workers) as pool:
-            for (spectras, spectras_mask), (labels, labels_mask) in tqdm(
+            for (sigs, labels), (sigs_mask, labels_mask) in tqdm(
                     eval_data_loader, desc='epoch {} evaluating'.format(epoch), smoothing=0.1):
-                spectras, spectras_mask = spectras.to(device), spectras_mask.to(device)
-                labels, labels_mask = labels.to(device), labels_mask.to(device)
-                logits, _ = model(spectras, spectras_mask, labels[:, :-1])
+                sigs, labels = sigs.to(device), labels.to(device)
+                sigs_mask, labels_mask = sigs_mask.to(device), labels_mask.to(device)
+
+                logits, etc = model(sigs, sigs_mask, labels[:, :-1])
 
                 loss = compute_loss(
                     input=logits, target=labels[:, 1:], mask=labels_mask[:, 1:], smoothing=args.lab_smooth)
@@ -233,18 +290,29 @@ def main():
                 wer = compute_wer(input=logits, target=labels[:, 1:], vocab=vocab, pool=pool)
                 metrics['wer'].update(wer)
 
-        eval_loss = metrics['loss'].compute_and_reset()
-        eval_wer = metrics['wer'].compute_and_reset()
-        eval_writer.add_scalar('loss', eval_loss, global_step=epoch)
-        eval_writer.add_scalar('wer', eval_wer, global_step=epoch)
+        with torch.no_grad():
+            metrics = {k: metrics[k].compute_and_reset() for k in metrics}
+            print('[EPOCH {}][EVAL] {}'.format(
+                epoch, ', '.join('{}: {:.4f}'.format(k, metrics[k]) for k in metrics)))
+            for k in metrics:
+                eval_writer.add_scalar(k, metrics[k], global_step=epoch)
 
-        save_model(model_to_save, experiment_path)
+            eval_writer.add_image(
+                'spectras',
+                torchvision.utils.make_grid(etc['spectras'], nrow=compute_nrow(etc['spectras']), normalize=True),
+                global_step=epoch)
+            eval_writer.add_image(
+                'weights',
+                torchvision.utils.make_grid(etc['weights'], nrow=compute_nrow(etc['weights']), normalize=True),
+                global_step=epoch)
+
+        save_model(model_to_save, args.experiment_path)
         # utils.save_model(model_to_save, utils.mkdir(os.path.join(experiment_path, 'epoch_{}'.format(epoch))))
-        if eval_wer < best_wer:
-            best_wer = eval_wer
-            save_model(model_to_save, mkdir(os.path.join(experiment_path, 'best')))
+        if metrics['wer'] < best_wer:
+            best_wer = metrics['wer']
+            save_model(model_to_save, mkdir(os.path.join(args.experiment_path, 'best')))
 
-        scheduler.step(eval_loss)
+        # scheduler.step(eval_loss)
 
 
 if __name__ == '__main__':

@@ -1,7 +1,10 @@
-import torch.nn as nn
-import attention
+import itertools
+
 import torch
+import torch.nn as nn
 import torch.nn.functional as F
+
+import attention
 import modules
 
 
@@ -38,55 +41,31 @@ class PyramidRNNEncoder(nn.Module):
         return input, last_hidden
 
 
-class Conv1dRNNEncoder(nn.Module):
-    def __init__(self, features, size):
-        super().__init__()
-
-        self.conv = nn.Sequential(
-            modules.ConvNorm1d(features, 32, 3, padding=1),
-
-            modules.ResidualBlockBasic1d(
-                32, 64, stride=2, downsample=modules.ConvNorm1d(32, 64, 3, stride=2, padding=1)),
-            modules.ResidualBlockBasic1d(64, 64),
-
-            modules.ResidualBlockBasic1d(
-                64, 128, stride=2, downsample=modules.ConvNorm1d(64, 128, 3, stride=2, padding=1)),
-            modules.ResidualBlockBasic1d(128, 128),
-
-            modules.ResidualBlockBasic1d(
-                128, 256, stride=2, downsample=modules.ConvNorm1d(128, 256, 3, stride=2, padding=1)),
-            modules.ResidualBlockBasic1d(256, 256))
-
-        self.rnn = nn.GRU(256, size // 2, num_layers=3, batch_first=True, bidirectional=True)
-
-    def forward(self, input):
-        input = input.permute(0, 2, 1)
-        input = self.conv(input)
-        input = input.permute(0, 2, 1)
-        input, _ = self.rnn(input)
-
-        return input
-
-
 class Conv2dRNNEncoder(nn.Module):
-    def __init__(self, features, size):
+    def __init__(self, in_features, out_features, num_layers):
         super().__init__()
 
+        base = 32
+
         self.conv = nn.Sequential(
-            modules.ConvNorm2d(1, 32, 3, padding=1),
+            modules.ConvNorm2d(1, base, 3, padding=1),
+            nn.ReLU(inplace=True),
             modules.ResidualBlockBasic2d(
-                32, 64, stride=2, downsample=modules.ConvNorm2d(32, 64, 3, stride=2, padding=1)),
+                base, base * 2, stride=2,
+                downsample=modules.ConvNorm2d(base, base * 2, 3, stride=2, padding=1)),
             modules.ResidualBlockBasic2d(
-                64, 128, stride=2, downsample=modules.ConvNorm2d(64, 128, 3, stride=2, padding=1)),
+                base * 2, base * 4, stride=2,
+                downsample=modules.ConvNorm2d(base * 2, base * 4, 3, stride=2, padding=1)),
             modules.ResidualBlockBasic2d(
-                128, 256, stride=2, downsample=modules.ConvNorm2d(128, 256, 3, stride=2, padding=1)))
+                base * 4, base * 8, stride=2,
+                downsample=modules.ConvNorm2d(base * 4, base * 8, 3, stride=2, padding=1)))
 
-        self.project = modules.ConvNorm1d(256 * (features // 2**3), size, 1)
-
-        self.rnn = nn.GRU(size, size // 2, num_layers=3, batch_first=True, bidirectional=True)
+        self.project = nn.Sequential(
+            modules.ConvNorm1d(base * 8 * (in_features // 2**3), out_features, 1),
+            nn.ReLU(inplace=True))
+        self.rnn = nn.GRU(out_features, out_features // 2, num_layers=num_layers, batch_first=True, bidirectional=True)
 
     def forward(self, input):
-        input = input.permute(0, 2, 1).unsqueeze(1)
         input = self.conv(input)
         input = input.view(input.size(0), input.size(1) * input.size(2), input.size(3))
         input = self.project(input)
@@ -97,13 +76,13 @@ class Conv2dRNNEncoder(nn.Module):
 
 
 class AttentionDecoder(nn.Module):
-    def __init__(self, size, vocab_size):
+    def __init__(self, features, vocab_size):
         super().__init__()
 
-        self.embedding = nn.Embedding(vocab_size, size, padding_idx=0)
-        self.rnn = nn.GRUCell(size * 2, size)
+        self.embedding = nn.Embedding(vocab_size, features, padding_idx=0)
+        self.rnn = nn.GRUCell(features * 2, features)
         self.attention = attention.DotProductAttention()
-        self.output = nn.Linear(size * 2, vocab_size)
+        self.output = nn.Linear(features * 2, vocab_size)
 
     def forward(self, input, features, features_mask):
         embeddings = self.embedding(input)
@@ -118,12 +97,12 @@ class AttentionDecoder(nn.Module):
             hidden = self.rnn(input, hidden)
             context, weight = self.attention(hidden, features, features_mask)
             output = torch.cat([hidden, context], 1)
-            output = self.output(output)
             outputs.append(output)
             weights.append(weight.squeeze(-1))
 
         outputs = torch.stack(outputs, 1)
         weights = torch.stack(weights, 1)
+        outputs = self.output(outputs)
 
         return outputs, weights
 
@@ -164,20 +143,36 @@ class DeepAttentionDecoder(nn.Module):
 
 
 class Model(nn.Module):
-    def __init__(self, features, size, vocab_size):
+    def __init__(self, sample_rate, vocab_size):
         super().__init__()
 
-        self.encoder = Conv2dRNNEncoder(features, size)
-        self.decoder = DeepAttentionDecoder(size, vocab_size)
+        features = 256
 
-    def forward(self, spectras, spectras_mask, seqs):
+        self.spectra = modules.Spectrogram(sample_rate)
+        self.encoder = Conv2dRNNEncoder(128, features, num_layers=1)
+        self.decoder = AttentionDecoder(features, vocab_size)
+
+        for m in itertools.chain(
+                self.encoder.modules(),
+                self.decoder.modules()):
+            if isinstance(m, (nn.Conv1d, nn.Conv2d)):
+                nn.init.kaiming_normal_(m.weight)
+                if m.bias is not None:
+                    nn.init.zeros_(m.bias)
+            if isinstance(m, (nn.BatchNorm1d, nn.BatchNorm2d)):
+                nn.init.ones_(m.weight)
+                nn.init.zeros_(m.bias)
+
+    def forward(self, sigs, sigs_mask, seqs):
+        spectras = self.spectra(sigs)
         features = self.encoder(spectras)
 
-        # TODO: validate
-        features_mask = spectras_mask
-        for _ in range(3):
-            features_mask = features_mask[:, ::2]
-
+        features_mask = None
         logits, weights = self.decoder(seqs, features, features_mask)
 
-        return logits, weights
+        etc = {
+            'spectras': spectras[:32],
+            'weights': weights.unsqueeze(1)[:32],
+        }
+
+        return logits, etc

@@ -1,7 +1,8 @@
 import math
+
+import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import torch
 
 
 # TODO: move to modules
@@ -94,8 +95,9 @@ class DotProductAttention(nn.Module):
         scores = torch.bmm(keys, query)
         if self.scale is not None:
             scores = self.scale(scores)
-        scores.masked_fill_(features_mask.unsqueeze(-1) == 0, float('-inf'))
-
+        if features_mask is not None:
+            scores.masked_fill_(features_mask.unsqueeze(-1) == 0, float('-inf'))
+           
         weights = scores.softmax(1)
         context = (values * weights).sum(1)
 
