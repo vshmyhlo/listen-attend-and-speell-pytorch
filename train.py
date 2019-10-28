@@ -25,26 +25,32 @@ from metrics import word_error_rate
 from model import Model
 from sampler import BatchSampler
 from transforms import LoadSignal, ApplyTo, Extract, VocabEncode, ToTensor
-from vocab import CHAR_VOCAB, CharVocab
+from vocab import WordVocab
 
-
+# TODO: word-piece model / subword model
+# TODO: multi-head attention
+# TODO: Minimum Word Error Rate (MWER) Training
+# TODO: Scheduled Sampling
+# TODO: sgd
 # TODO: preemphasis?
-# TODO: configure attention type
+# TODO: residual?
+# TODO: layer norm
 # TODO: use import scipy.io.wavfile as wav
-# TODO: bucketing
 # TODO: transformer loss sum
-# TODO: normalization, spectra computing, number of features (freq)
+# TODO: encoder/decoder self-attention
+# TODO: positional encoding
 # TODO: warmup
 # TODO: dropout
 # TODO: check targets are correct
 # TODO: pack sequence
 # TODO: per freq norm
-# TODO: mask attention
-# TODO: log ignore keys
 # TODO: pack padded seq for targets
-# TODO: min or max score scheduling
-# TODO: mask attention
+# TODO: better loss averaging
 # TODO: loss = F.cross_entropy(pred, gold, ignore_index=Constants.PAD, reduction='sum')
+# TODO: label smoothing
+
+
+N = 500
 
 
 def take_until_token(seq, token):
@@ -152,8 +158,8 @@ def main():
         load_data(os.path.join(args.dataset_path, 'dev-clean'), workers=args.workers),
     ])
 
-    vocab = CharVocab(CHAR_VOCAB)
-    # vocab = WordVocab(train_data['syms'])
+    # vocab = CharVocab(CHAR_VOCAB)
+    vocab = WordVocab(train_data['syms'], 30000)
     train_transform = T.Compose([
         ApplyTo(['sig'], T.Compose([
             LoadSignal(SAMPLE_RATE),
@@ -198,9 +204,10 @@ def main():
         optimizer = torch.optim.SGD(model.parameters(), args.lr, momentum=0.9, weight_decay=1e-4)
     else:
         raise AssertionError('invalid optimizer {}'.format(args.opt))
+    # optimizer = LA(optimizer, lr=0.5, num_steps=5)
 
     # scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', factor=0.5, patience=args.sched)
-    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, 500 * args.epochs)
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, N * args.epochs)
 
     # main loop
     train_writer = SummaryWriter(os.path.join(args.experiment_path, 'train'))
@@ -220,7 +227,7 @@ def main():
         model.train()
         t1 = time.time()
         for (sigs, labels), (sigs_mask, labels_mask) in tqdm(
-                itertools.islice(train_data_loader, 500), total=500, desc='epoch {} training'.format(epoch),
+                itertools.islice(train_data_loader, N), total=N, desc='epoch {} training'.format(epoch),
                 smoothing=0.01):
             sigs, labels = sigs.to(device), labels.to(device)
             sigs_mask, labels_mask = sigs_mask.to(device), labels_mask.to(device)
@@ -254,10 +261,12 @@ def main():
                 'spectras',
                 torchvision.utils.make_grid(etc['spectras'], nrow=compute_nrow(etc['spectras']), normalize=True),
                 global_step=epoch)
-            train_writer.add_image(
-                'weights',
-                torchvision.utils.make_grid(etc['weights'], nrow=compute_nrow(etc['weights']), normalize=True),
-                global_step=epoch)
+            for i in range(etc['weights'].size(1)):
+                train_writer.add_image(
+                    'weights/{}'.format(i),
+                    torchvision.utils.make_grid(
+                        etc['weights'][:, i:i + 1], nrow=compute_nrow(etc['weights']), normalize=True),
+                    global_step=epoch)
 
             for i, (true, pred) in enumerate(zip(
                     labels[:, 1:][:4].detach().data.cpu().numpy(),
@@ -301,10 +310,12 @@ def main():
                 'spectras',
                 torchvision.utils.make_grid(etc['spectras'], nrow=compute_nrow(etc['spectras']), normalize=True),
                 global_step=epoch)
-            eval_writer.add_image(
-                'weights',
-                torchvision.utils.make_grid(etc['weights'], nrow=compute_nrow(etc['weights']), normalize=True),
-                global_step=epoch)
+            for i in range(etc['weights'].size(1)):
+                eval_writer.add_image(
+                    'weights/{}'.format(i),
+                    torchvision.utils.make_grid(
+                        etc['weights'][:, i:i + 1], nrow=compute_nrow(etc['weights']), normalize=True),
+                    global_step=epoch)
 
         save_model(model_to_save, args.experiment_path)
         # utils.save_model(model_to_save, utils.mkdir(os.path.join(experiment_path, 'epoch_{}'.format(epoch))))

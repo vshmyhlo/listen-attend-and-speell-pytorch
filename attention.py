@@ -5,6 +5,21 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 
+class MultiHeadAttention(nn.Module):
+    def __init__(self, attentions):
+        super().__init__()
+
+        self.attentions = nn.ModuleList(attentions)
+
+    def forward(self, input, features, features_mask):
+        inputs, weights = zip(*[a(input, features, features_mask) for a in self.attentions])
+
+        inputs = sum(inputs)
+        weights = torch.stack(weights, 1)
+
+        return inputs, weights
+
+
 # TODO: move to modules
 class NormalizedLinear(nn.Module):
     def __init__(self, in_features, out_features, bias=True):
@@ -35,26 +50,26 @@ class NormalizedLinear(nn.Module):
 
 # TODO: init
 # TODO: bias
-class QKVScaledDotProductAttention(nn.Module):
-    def __init__(self, size):
+class QKVDotProductAttention(nn.Module):
+    def __init__(self, size, scale=True):
         super().__init__()
+
+        if scale:
+            self.scale = nn.Linear(1, 1, bias=False)
+
+            nn.init.constant_(self.scale.weight, 1. / math.sqrt(size))
+        else:
+            self.scale = None
 
         # TODO: use bias or norm?
         self.query = nn.Linear(size, size)
         self.key = nn.Linear(size, size)
         self.value = nn.Linear(size, size)
 
-        # nn.init.normal_(self.query.weight, 0, math.sqrt(2.0 / (size + size)))
-        # nn.init.normal_(self.key.weight, 0, math.sqrt(2.0 / (size * 2 + size)))
-        # nn.init.normal_(self.value.weight, 0, math.sqrt(2.0 / (size * 2 + size)))
-
-        nn.init.normal_(self.query.weight, 0, 0.01)
-        nn.init.normal_(self.key.weight, 0, 0.01)
-        nn.init.normal_(self.value.weight, 0, 0.01)
-
-        nn.init.constant_(self.query.bias, 0)
-        nn.init.constant_(self.key.bias, 0)
-        nn.init.constant_(self.value.bias, 0)
+        for l in [self.query, self.key, self.value]:
+            # nn.init.normal_(l.weight, 0, math.sqrt(2.0 / (size + size)))
+            nn.init.normal_(l.weight, 0, 0.01)
+            nn.init.constant_(l.bias, 0)
 
     def forward(self, input, features, features_mask):
         query = self.query(input).unsqueeze(-1)
@@ -65,11 +80,16 @@ class QKVScaledDotProductAttention(nn.Module):
         size = keys.size(2)
         assert size == query.size(1)
 
-        scores = torch.bmm(keys, query) / math.sqrt(size)
-        scores.masked_fill_(features_mask.unsqueeze(-1) == 0, float('-inf'))
+        scores = torch.bmm(keys, query)
+        if self.scale is not None:
+            scores = self.scale(scores)
+        if features_mask is not None:
+            scores.masked_fill_(features_mask.unsqueeze(-1) == 0, float('-inf'))
 
         weights = scores.softmax(1)
         context = (values * weights).sum(1)
+
+        weights = weights.squeeze(2).unsqueeze(1)
 
         return context, weights
 
@@ -80,6 +100,8 @@ class DotProductAttention(nn.Module):
 
         if scale:
             self.scale = nn.Linear(1, 1, bias=False)
+
+            nn.init.constant_(self.scale.weight, 1.)
         else:
             self.scale = None
 
@@ -97,7 +119,7 @@ class DotProductAttention(nn.Module):
             scores = self.scale(scores)
         if features_mask is not None:
             scores.masked_fill_(features_mask.unsqueeze(-1) == 0, float('-inf'))
-           
+
         weights = scores.softmax(1)
         context = (values * weights).sum(1)
 

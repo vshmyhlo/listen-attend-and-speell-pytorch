@@ -1,74 +1,45 @@
 import itertools
+import math
 
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 
 import attention
 import modules
 
 
-# TODO: revisit
-class PBRNN(nn.Module):
-    def __init__(self, input_size, hidden_size):
-        super().__init__()
-
-        self.rnn = nn.GRU(input_size, hidden_size, batch_first=True, bidirectional=True)  # TODO: revisit
-
-    def forward(self, input):
-        if input.size(1) % 2 == 1:
-            input = F.pad(input, (0, 0, 0, 1, 0, 0), mode='constant', value=0.)
-
-        input = input.contiguous().view(input.size(0), input.size(1) // 2, input.size(2) * 2)
-        input, hidden = self.rnn(input)
-
-        return input, hidden
-
-
-class PyramidRNNEncoder(nn.Module):
-    def __init__(self, size):
-        super().__init__()
-
-        self.rnn_1 = PBRNN(256, size // 2)
-        self.rnn_2 = PBRNN(size * 2, size // 2)
-        self.rnn_3 = PBRNN(size * 2, size // 2)
-
-    def forward(self, input):
-        input, _ = self.rnn_1(input)
-        input, _ = self.rnn_2(input)
-        input, last_hidden = self.rnn_3(input)
-
-        return input, last_hidden
-
-
 class Conv2dRNNEncoder(nn.Module):
-    def __init__(self, in_features, out_features, num_layers, pool=True):
+    def __init__(self, in_features, out_features, num_conv_layers, num_rnn_layers, pool=True):
         super().__init__()
 
         base = 32
+        conv = []
+        for i in range(num_conv_layers):
+            if i == 0:
+                block = nn.Sequential(
+                    modules.ConvNorm2d(1, base * 2, kernel_size=3, stride=2, padding=1),
+                    nn.ReLU(inplace=True))
+            else:
+                block = modules.ResidualBlockBasic2d(
+                    base, base * 2, stride=2,
+                    downsample=modules.ConvNorm2d(base, base * 2, kernel_size=1, stride=2))
 
-        self.conv = nn.Sequential(
-            modules.ConvNorm2d(1, base, 3, padding=1),
-            nn.ReLU(inplace=True),
-            modules.ResidualBlockBasic2d(
-                base, base * 2, stride=2,
-                downsample=modules.ConvNorm2d(base, base * 2, 3, stride=2, padding=1)),
-            modules.ResidualBlockBasic2d(
-                base * 2, base * 4, stride=2,
-                downsample=modules.ConvNorm2d(base * 2, base * 4, 3, stride=2, padding=1)),
-            modules.ResidualBlockBasic2d(
-                base * 4, base * 8, stride=2,
-                downsample=modules.ConvNorm2d(base * 4, base * 8, 3, stride=2, padding=1)))
+            conv.append(block)
+            base *= 2
+
+        self.conv = nn.Sequential(*conv)
 
         if pool:
             self.project = nn.Sequential(
-                nn.MaxPool2d((in_features // 2**3, 1), 1),
-                modules.ConvNorm2d(base * 8, out_features, 1),
+                nn.MaxPool2d((in_features // 2**num_conv_layers, 1), 1),
+                modules.ConvNorm2d(base, out_features, kernel_size=1),
                 nn.ReLU(inplace=True))
         else:
             raise NotImplementedError()
-       
-        self.rnn = nn.GRU(out_features, out_features // 2, num_layers=num_layers, batch_first=True, bidirectional=True)
+
+        self.rnn = nn.GRU(
+            out_features, out_features // 2, num_layers=num_rnn_layers, batch_first=True, bidirectional=True)
+        # self.norm = nn.LayerNorm(out_features)
 
     def forward(self, input):
         input = self.conv(input)
@@ -76,18 +47,21 @@ class Conv2dRNNEncoder(nn.Module):
         input = input.squeeze(2)
         input = input.permute(0, 2, 1)
         input, _ = self.rnn(input)
+        # input = self.norm(input)
 
         return input
 
 
 class AttentionDecoder(nn.Module):
-    def __init__(self, features, vocab_size):
+    def __init__(self, in_features, mid_features, vocab_size):
         super().__init__()
 
-        self.embedding = nn.Embedding(vocab_size, features, padding_idx=0)
-        self.rnn = nn.GRUCell(features * 2, features)
-        self.attention = attention.DotProductAttention()
-        self.output = nn.Linear(features * 2, vocab_size)
+        self.embedding = nn.Embedding(vocab_size, in_features, padding_idx=0)
+        self.rnn = nn.GRUCell(in_features * 2, mid_features)
+        self.attention = attention.QKVDotProductAttention(mid_features)
+        self.output = nn.Sequential(
+            # nn.LayerNorm(mid_features * 2),
+            nn.Linear(mid_features * 2, vocab_size))
 
     def forward(self, input, features, features_mask):
         embeddings = self.embedding(input)
@@ -103,10 +77,11 @@ class AttentionDecoder(nn.Module):
             context, weight = self.attention(hidden, features, features_mask)
             output = torch.cat([hidden, context], 1)
             outputs.append(output)
-            weights.append(weight.squeeze(-1))
+            weights.append(weight)
 
         outputs = torch.stack(outputs, 1)
-        weights = torch.stack(weights, 1)
+        weights = torch.stack(weights, 2)
+
         outputs = self.output(outputs)
 
         return outputs, weights
@@ -154,8 +129,8 @@ class Model(nn.Module):
         features = 256
 
         self.spectra = modules.Spectrogram(sample_rate)
-        self.encoder = Conv2dRNNEncoder(128, features, num_layers=1)
-        self.decoder = AttentionDecoder(features, vocab_size)
+        self.encoder = Conv2dRNNEncoder(in_features=128, out_features=features, num_conv_layers=5, num_rnn_layers=1)
+        self.decoder = AttentionDecoder(in_features=features, mid_features=features, vocab_size=vocab_size)
 
         for m in itertools.chain(
                 self.encoder.modules(),
@@ -172,16 +147,16 @@ class Model(nn.Module):
         spectras = self.spectra(sigs)
         features = self.encoder(spectras)
 
-        # r = sigs.size(1) / features.size(1)
-        # features_mask = sigs_mask[:, ::math.floor(r)]
-        # features_mask = features_mask[:, :features.size(1)]
-        features_mask = None
+        r = sigs.size(1) / features.size(1)
+        features_mask = sigs_mask[:, ::math.floor(r)]
+        features_mask = features_mask[:, :features.size(1)]
+        # features_mask = None
 
         logits, weights = self.decoder(seqs, features, features_mask)
 
         etc = {
             'spectras': spectras[:32],
-            'weights': weights.unsqueeze(1)[:32],
+            'weights': weights[:32],
         }
 
         return logits, etc
