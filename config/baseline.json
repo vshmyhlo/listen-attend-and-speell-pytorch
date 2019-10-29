@@ -1,0 +1,10 @@
+{
+    "seed": 42,
+    "epochs": 30,
+    "batch_size": 32,
+    "label_smoothing": 0.1,
+    "opt": {
+        "type": "adam",
+        "lr": 1e-3
+    }
+}

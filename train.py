@@ -14,12 +14,12 @@ import torchvision
 import torchvision.transforms as T
 from tensorboardX import SummaryWriter
 from termcolor import colored
-from ticpfptp.format import args_to_string
 from ticpfptp.metrics import Mean
 from ticpfptp.os import mkdir
 from ticpfptp.torch import fix_seed, load_weights, save_model
 from tqdm import tqdm
 
+from config import Config
 from dataset import TrainEvalDataset, SAMPLE_RATE, load_data
 from metrics import word_error_rate
 from model import Model
@@ -50,7 +50,7 @@ from vocab import WordVocab
 # TODO: label smoothing
 
 
-N = 500
+N = 1000
 
 
 def take_until_token(seq, token):
@@ -121,6 +121,8 @@ def softmax_cross_entropy(input, target, axis=1, keepdim=False):
 
 def compute_loss(input, target, mask, smoothing):
     target = one_hot(target, input.size(2))
+    target = target * (1 - smoothing) + smoothing / input.size(2)
+
     loss = softmax_cross_entropy(input=input, target=target, axis=2)
     loss = (loss * mask.float()).sum(1)
 
@@ -130,16 +132,10 @@ def compute_loss(input, target, mask, smoothing):
 def build_parser():
     parser = argparse.ArgumentParser()
     parser.add_argument('--experiment-path', type=str, default='./tf_log')
-    parser.add_argument('--restore-path', type=str)
     parser.add_argument('--dataset-path', type=str, default='./data')
-    parser.add_argument('--lr', type=float, default=1e-3)
-    parser.add_argument('--opt', type=str, choices=['adam', 'momentum'], default='adam')
-    parser.add_argument('--bs', type=int, default=32)
-    parser.add_argument('--epochs', type=int, default=100)
-    parser.add_argument('--lab-smooth', type=float, default=0.1)
+    parser.add_argument('--config-path', type=str, required=True)
+    parser.add_argument('--restore-path', type=str)
     parser.add_argument('--workers', type=int, default=os.cpu_count())
-    parser.add_argument('--sched', type=int, default=10)
-    parser.add_argument('--seed', type=int, default=42)
 
     return parser
 
@@ -147,8 +143,8 @@ def build_parser():
 def main():
     logging.basicConfig(level=logging.INFO)
     args = build_parser().parse_args()
-    logging.info(args_to_string(args))
-    fix_seed(args.seed)
+    config = Config.from_json(args.config_path)
+    fix_seed(config.seed)
 
     train_data = pd.concat([
         load_data(os.path.join(args.dataset_path, 'train-clean-100'), workers=args.workers),
@@ -179,13 +175,13 @@ def main():
 
     train_data_loader = torch.utils.data.DataLoader(
         train_dataset,
-        batch_sampler=BatchSampler(train_data, batch_size=args.bs, shuffle=True, drop_last=True),
+        batch_sampler=BatchSampler(train_data, batch_size=config.batch_size, shuffle=True, drop_last=True),
         num_workers=args.workers,
         collate_fn=collate_fn)
 
     eval_data_loader = torch.utils.data.DataLoader(
         eval_dataset,
-        batch_sampler=BatchSampler(eval_data, batch_size=args.bs),
+        batch_sampler=BatchSampler(eval_data, batch_size=config.batch_size),
         num_workers=args.workers,
         collate_fn=collate_fn)
 
@@ -198,23 +194,23 @@ def main():
     if args.restore_path is not None:
         load_weights(model_to_save, args.restore_path)
 
-    if args.opt == 'adam':
-        optimizer = torch.optim.Adam(model.parameters(), args.lr, weight_decay=1e-4)
-    elif args.opt == 'momentum':
-        optimizer = torch.optim.SGD(model.parameters(), args.lr, momentum=0.9, weight_decay=1e-4)
+    if config.opt.type == 'adam':
+        optimizer = torch.optim.Adam(model.parameters(), config.opt.lr, weight_decay=1e-4)
+    elif config.opt.type == 'momentum':
+        optimizer = torch.optim.SGD(model.parameters(), config.opt.lr, momentum=0.9, weight_decay=1e-4)
     else:
-        raise AssertionError('invalid optimizer {}'.format(args.opt))
+        raise AssertionError('invalid optimizer {}'.format(config.opt.type))
     # optimizer = LA(optimizer, lr=0.5, num_steps=5)
 
     # scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', factor=0.5, patience=args.sched)
-    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, N * args.epochs)
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, N * config.epochs)
 
     # main loop
     train_writer = SummaryWriter(os.path.join(args.experiment_path, 'train'))
     eval_writer = SummaryWriter(os.path.join(args.experiment_path, 'eval'))
     best_wer = float('inf')
 
-    for epoch in range(args.epochs):
+    for epoch in range(config.epochs):
         if epoch % 10 == 0:
             logging.info(args.experiment_path)
 
@@ -235,7 +231,7 @@ def main():
             logits, etc = model(sigs, sigs_mask, labels[:, :-1])
 
             loss = compute_loss(
-                input=logits, target=labels[:, 1:], mask=labels_mask[:, 1:], smoothing=args.lab_smooth)
+                input=logits, target=labels[:, 1:], mask=labels_mask[:, 1:], smoothing=config.label_smoothing)
             metrics['loss'].update(loss.data.cpu().numpy())
 
             lr = np.squeeze(scheduler.get_lr())
@@ -293,7 +289,7 @@ def main():
                 logits, etc = model(sigs, sigs_mask, labels[:, :-1])
 
                 loss = compute_loss(
-                    input=logits, target=labels[:, 1:], mask=labels_mask[:, 1:], smoothing=args.lab_smooth)
+                    input=logits, target=labels[:, 1:], mask=labels_mask[:, 1:], smoothing=config.label_smoothing)
                 metrics['loss'].update(loss.data.cpu().numpy())
 
                 wer = compute_wer(input=logits, target=labels[:, 1:], vocab=vocab, pool=pool)
