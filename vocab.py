@@ -1,5 +1,6 @@
 from collections import Counter
 
+from bpemb import BPEmb
 from tqdm import tqdm
 
 CHAR_VOCAB = [
@@ -60,3 +61,31 @@ class WordVocab(object):
 
     def decode(self, ids):
         return ' '.join(self.id2sym[id] for id in ids)
+
+
+class SubWordVocab(object):
+    def __init__(self, size):
+        self.encoder = BPEmb(lang='en', vs=size)
+
+        assert self.sos_id == 1
+        assert self.eos_id == 2
+
+    def __len__(self):
+        return self.encoder.vs
+
+    @property
+    def sos_id(self):
+        return 1
+
+    @property
+    def eos_id(self):
+        return self.encoder.EOS
+
+    def encode(self, syms):
+        return self.encoder.encode_ids(syms)
+
+    def decode(self, ids):
+        syms = self.encoder.decode_ids(ids)
+        if isinstance(syms, list):
+            return ''
+        return syms

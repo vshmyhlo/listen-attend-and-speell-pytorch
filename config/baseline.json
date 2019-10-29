@@ -2,6 +2,7 @@
     "seed": 42,
     "epochs": 30,
     "batch_size": 32,
+    "vocab": "word",
     "label_smoothing": 0.1,
     "opt": {
         "type": "adam",

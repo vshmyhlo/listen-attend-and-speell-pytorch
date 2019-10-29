@@ -25,15 +25,15 @@ from metrics import word_error_rate
 from model import Model
 from sampler import BatchSampler
 from transforms import LoadSignal, ApplyTo, Extract, VocabEncode, ToTensor
-from vocab import WordVocab
+from utils import take_until_token
+from vocab import SubWordVocab, CHAR_VOCAB, CharVocab, WordVocab
 
 # TODO: word-piece model / subword model
 # TODO: multi-head attention
 # TODO: Minimum Word Error Rate (MWER) Training
 # TODO: Scheduled Sampling
 # TODO: sgd
-# TODO: preemphasis?
-# TODO: residual?
+# TODO: better tokenization for word level model
 # TODO: layer norm
 # TODO: use import scipy.io.wavfile as wav
 # TODO: transformer loss sum
@@ -41,23 +41,16 @@ from vocab import WordVocab
 # TODO: positional encoding
 # TODO: warmup
 # TODO: dropout
+# TODO: residual
 # TODO: check targets are correct
 # TODO: pack sequence
 # TODO: per freq norm
 # TODO: pack padded seq for targets
 # TODO: better loss averaging
 # TODO: loss = F.cross_entropy(pred, gold, ignore_index=Constants.PAD, reduction='sum')
-# TODO: label smoothing
 
 
 N = 1000
-
-
-def take_until_token(seq, token):
-    if token in seq:
-        return seq[:seq.index(token)]
-    else:
-        return seq
 
 
 # TODO: check correct truncation
@@ -68,8 +61,9 @@ def compute_wer(input, target, vocab, pool):
     hyps = [take_until_token(pred.tolist(), vocab.eos_id) for pred in pred]
     refs = [take_until_token(true.tolist(), vocab.eos_id) for true in true]
 
-    hyps = map(lambda hyp: vocab.decode(hyp).split(), hyps)
-    refs = map(lambda ref: vocab.decode(ref).split(), refs)
+    hyps = [vocab.decode(hyp).split() for hyp in hyps]
+    refs = [vocab.decode(ref).split() for ref in refs]
+
     wers = pool.starmap(word_error_rate, zip(refs, hyps))
 
     return wers
@@ -154,8 +148,15 @@ def main():
         load_data(os.path.join(args.dataset_path, 'dev-clean'), workers=args.workers),
     ])
 
-    # vocab = CharVocab(CHAR_VOCAB)
-    vocab = WordVocab(train_data['syms'], 30000)
+    if config.vocab == 'char':
+        vocab = CharVocab(CHAR_VOCAB)
+    elif config.vocab == 'word':
+        vocab = WordVocab(train_data['syms'], 30000)
+    elif config.vocab == 'subword':
+        vocab = SubWordVocab(10000)
+    else:
+        raise AssertionError('invalid config.vocab: {}'.format(config.vocab))
+
     train_transform = T.Compose([
         ApplyTo(['sig'], T.Compose([
             LoadSignal(SAMPLE_RATE),
@@ -196,10 +197,10 @@ def main():
 
     if config.opt.type == 'adam':
         optimizer = torch.optim.Adam(model.parameters(), config.opt.lr, weight_decay=1e-4)
-    elif config.opt.type == 'momentum':
+    elif config.opt.type == 'sgd':
         optimizer = torch.optim.SGD(model.parameters(), config.opt.lr, momentum=0.9, weight_decay=1e-4)
     else:
-        raise AssertionError('invalid optimizer {}'.format(config.opt.type))
+        raise AssertionError('invalid config.opt.type {}'.format(config.opt.type))
     # optimizer = LA(optimizer, lr=0.5, num_steps=5)
 
     # scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', factor=0.5, patience=args.sched)

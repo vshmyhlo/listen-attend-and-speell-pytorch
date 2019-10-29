@@ -150,7 +150,6 @@ class Model(nn.Module):
         r = sigs.size(1) / features.size(1)
         features_mask = sigs_mask[:, ::math.floor(r)]
         features_mask = features_mask[:, :features.size(1)]
-        # features_mask = None
 
         logits, weights = self.decoder(seqs, features, features_mask)
 
