@@ -12,14 +12,14 @@ import torch.nn as nn
 import torch.utils.data
 import torchvision
 import torchvision.transforms as T
+from all_the_tools.config import Config
+from all_the_tools.metrics import Mean
 from tensorboardX import SummaryWriter
 from termcolor import colored
-from ticpfptp.metrics import Mean
 from ticpfptp.os import mkdir
 from ticpfptp.torch import fix_seed, load_weights, save_model
 from tqdm import tqdm
 
-from config import Config
 from dataset import TrainEvalDataset, SAMPLE_RATE, load_data
 from metrics import word_error_rate
 from model import Model
