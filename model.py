@@ -2,6 +2,7 @@ import itertools
 import math
 
 import torch
+import torch.distributions
 import torch.nn as nn
 
 import attention
@@ -85,6 +86,57 @@ class AttentionDecoder(nn.Module):
         outputs = self.output(outputs)
 
         return outputs, weights
+
+
+class SamplingAttentionDecoder(nn.Module):
+    def __init__(self, in_features, mid_features, vocab_size):
+        super().__init__()
+
+        self.embedding = nn.Embedding(vocab_size, in_features, padding_idx=0)
+        self.rnn = nn.GRUCell(in_features * 2, mid_features)
+        self.attention = attention.QKVDotProductAttention(mid_features)
+        self.output = nn.Sequential(
+            # nn.LayerNorm(mid_features * 2),
+            nn.Linear(mid_features * 2, vocab_size))
+
+    def forward(self, input, features, features_mask):
+        input_prob = self.one_hot(input, self.embedding.num_embeddings)
+        context = torch.zeros(input.size(0), self.embedding.embedding_dim).to(input.device)
+        hidden = None
+        output = None
+
+        outputs = []
+        weights = []
+
+        for t in range(input.size(1)):
+            if output is None:
+                prob = input_prob[:, t, :]
+            else:
+                prob = 0.5 * input_prob[:, t, :] + \
+                       0.5 * output.softmax(1)
+
+            dist = torch.distributions.Categorical(probs=prob)
+            index = dist.sample()
+
+            embedding = self.embedding(index)
+            input = torch.cat([embedding, context], 1)
+            hidden = self.rnn(input, hidden)
+            context, weight = self.attention(hidden, features, features_mask)
+            output = torch.cat([hidden, context], 1)
+            output = self.output(output)
+            outputs.append(output)
+            weights.append(weight)
+
+        outputs = torch.stack(outputs, 1)
+        weights = torch.stack(weights, 2)
+
+        return outputs, weights
+
+    @staticmethod
+    def one_hot(input, num_classes):
+        input = torch.eye(num_classes, dtype=torch.float, device=input.device)[input]
+
+        return input
 
 
 class DeepAttentionDecoder(nn.Module):
