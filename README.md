@@ -4,3 +4,9 @@
 * Encoder is 2D Convolutional network over log-mel spectrogram followed by several GRU layers
 * Decoder is GRU Network with Luong style attention
 * Trained on LibriSpeech
+
+### Example spectrograms
+![Example spectrograms](./data/spectras.png)
+
+### Corresponding attention matrices
+![Example attention matrices](./data/weights.png)
