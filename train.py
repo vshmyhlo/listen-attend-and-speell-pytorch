@@ -28,12 +28,17 @@ from transforms import LoadSignal, ApplyTo, Extract, VocabEncode, ToTensor
 from utils import take_until_token
 from vocab import SubWordVocab, CHAR_VOCAB, CharVocab, WordVocab
 
+# TODO: refactor to make implicit rnn loop in decoder
+# TODO: positional encoding and NO rnn (transformer-style)
 # TODO: word-piece model / subword model
 # TODO: multi-head attention
 # TODO: Minimum Word Error Rate (MWER) Training
+# TODO: iterative inference
 # TODO: Scheduled Sampling
 # TODO: sgd
 # TODO: better tokenization for word level model
+# TODO: try lstm
+# TODO: positional encoding
 # TODO: layer norm
 # TODO: use import scipy.io.wavfile as wav
 # TODO: transformer loss sum
@@ -45,7 +50,6 @@ from vocab import SubWordVocab, CHAR_VOCAB, CharVocab, WordVocab
 # TODO: check targets are correct
 # TODO: pack sequence
 # TODO: per freq norm
-# TODO: pack padded seq for targets
 # TODO: better loss averaging
 # TODO: loss = F.cross_entropy(pred, gold, ignore_index=Constants.PAD, reduction='sum')
 

@@ -4,6 +4,24 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 
+class PositionalEncoding(nn.Module):
+    def forward(self, input):
+        _, t, c = input.size()
+       
+        pos = torch.arange(t, dtype=input.dtype, device=input.device).unsqueeze(1)
+        i = torch.arange(c, dtype=input.dtype, device=input.device).unsqueeze(0)
+        enc = pos / 10000**(2 * i / c)
+        enc = torch.cat([
+            torch.sin(enc[:, 0::2]),
+            torch.cos(enc[:, 1::2]),
+        ], 1)
+        enc = enc.unsqueeze(0)
+
+        input = input + enc
+
+        return input
+
+
 class ConvNorm1d(nn.Module):
     def __init__(self, in_channels, out_channels, kernel_size, stride=1, padding=0):
         super().__init__()

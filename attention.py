@@ -50,21 +50,20 @@ class NormalizedLinear(nn.Module):
 
 # TODO: init
 # TODO: bias
+# TODO: refactor names
 class QKVDotProductAttention(nn.Module):
-    def __init__(self, size, scale=True):
+    def __init__(self, features, scale=True):
         super().__init__()
 
         if scale:
-            self.scale = nn.Linear(1, 1, bias=False)
-
-            nn.init.constant_(self.scale.weight, 1. / math.sqrt(size))
+            self.scale = nn.Parameter(torch.tensor(1. / math.sqrt(features)))
         else:
             self.scale = None
 
         # TODO: use bias or norm?
-        self.query = nn.Linear(size, size)
-        self.key = nn.Linear(size, size)
-        self.value = nn.Linear(size, size)
+        self.query = nn.Linear(features, features)
+        self.key = nn.Linear(features, features)
+        self.value = nn.Linear(features, features)
 
         for l in [self.query, self.key, self.value]:
             # nn.init.normal_(l.weight, 0, math.sqrt(2.0 / (size + size)))
@@ -72,24 +71,26 @@ class QKVDotProductAttention(nn.Module):
             nn.init.constant_(l.bias, 0)
 
     def forward(self, input, features, features_mask):
-        query = self.query(input).unsqueeze(-1)
+        query = self.query(input)
         keys = self.key(features)
         values = self.value(features)
         del input, features
 
-        size = keys.size(2)
-        assert size == query.size(1)
+        assert query.size(2) == keys.size(2)
+        scores = torch.bmm(query, keys.transpose(1, 2))
 
-        scores = torch.bmm(keys, query)
         if self.scale is not None:
-            scores = self.scale(scores)
+            scores = scores * self.scale
         if features_mask is not None:
-            scores.masked_fill_(features_mask.unsqueeze(-1) == 0, float('-inf'))
+            scores.masked_fill_(~features_mask.unsqueeze(1), float('-inf'))
 
-        weights = scores.softmax(1)
-        context = (values * weights).sum(1)
+        values = values.unsqueeze(1)
+        scores = scores.unsqueeze(3)
 
-        weights = weights.squeeze(2).unsqueeze(1)
+        weights = scores.softmax(2)
+        context = (values * weights).sum(2)
+
+        weights = weights.squeeze(3).unsqueeze(1)
 
         return context, weights
 
