@@ -40,7 +40,6 @@ class Conv2dRNNEncoder(nn.Module):
 
         self.rnn = nn.GRU(
             out_features, out_features // 2, num_layers=num_rnn_layers, batch_first=True, bidirectional=True)
-        # self.pos_encoding = modules.PositionalEncoding()
 
     def forward(self, input):
         input = self.conv(input)
@@ -48,7 +47,6 @@ class Conv2dRNNEncoder(nn.Module):
         input = input.squeeze(2)
         input = input.permute(0, 2, 1)
         input, _ = self.rnn(input)
-        # input = self.pos_encoding(input)
 
         return input
 
