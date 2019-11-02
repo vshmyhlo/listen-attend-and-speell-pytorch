@@ -11,11 +11,11 @@ class MultiHeadAttention(nn.Module):
 
         self.attentions = nn.ModuleList(attentions)
 
-    def forward(self, input, features, features_mask):
-        inputs, weights = zip(*[a(input, features, features_mask) for a in self.attentions])
+    def forward(self, inputs, features, features_mask):
+        inputs, weights = zip(*[a(inputs, features, features_mask) for a in self.attentions])
 
         inputs = sum(inputs)
-        weights = torch.stack(weights, 1)
+        weights = torch.cat(weights, 1)
 
         return inputs, weights
 
@@ -48,11 +48,9 @@ class NormalizedLinear(nn.Module):
         return F.linear(input, weight, self.bias)
 
 
-# TODO: init
 # TODO: bias
-# TODO: refactor names
 class QKVDotProductAttention(nn.Module):
-    def __init__(self, features, scale=True):
+    def __init__(self, features, scale=True, bias=True):
         super().__init__()
 
         if scale:
@@ -61,20 +59,20 @@ class QKVDotProductAttention(nn.Module):
             self.scale = None
 
         # TODO: use bias or norm?
-        self.query = nn.Linear(features, features)
-        self.key = nn.Linear(features, features)
-        self.value = nn.Linear(features, features)
+        self.query = nn.Linear(features, features, bias=bias)
+        self.key = nn.Linear(features, features, bias=bias)
+        self.value = nn.Linear(features, features, bias=bias)
 
         for l in [self.query, self.key, self.value]:
             # nn.init.normal_(l.weight, 0, math.sqrt(2.0 / (size + size)))
             nn.init.normal_(l.weight, 0, 0.01)
             nn.init.constant_(l.bias, 0)
 
-    def forward(self, input, features, features_mask):
-        query = self.query(input)
+    def forward(self, inputs, features, features_mask):
+        query = self.query(inputs)
         keys = self.key(features)
         values = self.value(features)
-        del input, features
+        del inputs, features
 
         assert query.size(2) == keys.size(2)
         scores = torch.bmm(query, keys.transpose(1, 2))

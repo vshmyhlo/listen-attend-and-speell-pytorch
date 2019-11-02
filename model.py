@@ -155,7 +155,8 @@ class AttentionDecoderV3(nn.Module):
     def forward(self, input, features, features_mask):
         input = self.embedding(input)
         input, _ = self.rnn(input)
-        input, weight = self.attention(input, features, features_mask)
+        context, weight = self.attention(input, features, features_mask)
+        input = input + context
         input = self.output(input)
 
         return input, weight

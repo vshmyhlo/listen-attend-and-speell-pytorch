@@ -28,6 +28,7 @@ from transforms import LoadSignal, ApplyTo, Extract, VocabEncode, ToTensor
 from utils import take_until_token
 from vocab import SubWordVocab, CHAR_VOCAB, CharVocab, WordVocab
 
+# TODO: multi-head attention
 # TODO: refactor to make implicit rnn loop in decoder
 # TODO: positional encoding and NO rnn (transformer-style)
 # TODO: word-piece model / subword model
@@ -55,6 +56,16 @@ from vocab import SubWordVocab, CHAR_VOCAB, CharVocab, WordVocab
 
 
 N = 1000
+
+
+def draw_attention(weights):
+    color = np.random.RandomState(42).uniform(0.5, 1, size=(1, weights.size(1), 3, 1, 1))
+    color = torch.tensor(color, dtype=weights.dtype, device=weights.device)
+
+    weights = weights.unsqueeze(2)
+    images = (weights * color).mean(1)
+
+    return images
 
 
 # TODO: check correct truncation
