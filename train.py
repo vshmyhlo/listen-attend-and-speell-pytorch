@@ -44,6 +44,7 @@ from vocab import SubWordVocab, CHAR_VOCAB, CharVocab, WordVocab
 # TODO: per freq norm
 # TODO: norm spec 1d
 # TODO: better loss averaging
+# TODO: beam search
 # TODO: loss = F.cross_entropy(pred, gold, ignore_index=Constants.PAD, reduction='sum')
 
 
@@ -283,7 +284,7 @@ def main():
 
         # evaluation
         metrics = {
-            'loss': Mean(),
+            # 'loss': Mean(),
             'wer': Mean(),
         }
 
@@ -294,11 +295,12 @@ def main():
                 sigs, labels = sigs.to(device), labels.to(device)
                 sigs_mask, labels_mask = sigs_mask.to(device), labels_mask.to(device)
 
-                logits, etc = model(sigs, sigs_mask, labels[:, :-1])
+                logits, etc = model.infer(
+                    sigs, sigs_mask, sos_id=vocab.sos_id, eos_id=vocab.eos_id, max_steps=labels.size(1) + 10)
 
-                loss = compute_loss(
-                    input=logits, target=labels[:, 1:], mask=labels_mask[:, 1:], smoothing=config.label_smoothing)
-                metrics['loss'].update(loss.data.cpu().numpy())
+                # loss = compute_loss(
+                #     input=logits, target=labels[:, 1:], mask=labels_mask[:, 1:], smoothing=config.label_smoothing)
+                # metrics['loss'].update(loss.data.cpu().numpy())
 
                 wer = compute_wer(input=logits, target=labels[:, 1:], vocab=vocab, pool=pool)
                 metrics['wer'].update(wer)

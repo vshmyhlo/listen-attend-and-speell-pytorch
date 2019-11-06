@@ -51,98 +51,7 @@ class Conv2dRNNEncoder(nn.Module):
         return input
 
 
-class AttentionWrapper(nn.Module):
-    def __init__(self, rnn, attention):
-        super().__init__()
-
-        self.rnn = rnn
-        self.attention = attention
-
-    def forward(self, input, hidden, features, features_mask):
-        hidden = self.rnn(input, hidden)
-        context, weight = self.attention(hidden, features, features_mask)
-
-        return hidden, context, weight
-
-
-class AttentionIterativeDecoder(nn.Module):
-    def __init__(self, in_features, mid_features, vocab_size):
-        super().__init__()
-
-        self.embedding = nn.Embedding(vocab_size, in_features, padding_idx=0)
-        self.rnn = nn.GRUCell(in_features * 2, mid_features)
-        self.attention = attention.QKVDotProductAttention(mid_features)
-        self.output = nn.Sequential(
-            nn.Linear(mid_features * 2, vocab_size))
-
-    def forward(self, input, features, features_mask):
-        embeddings = self.embedding(input)
-        context = torch.zeros(embeddings.size(0), embeddings.size(2)).to(embeddings.device)
-        hidden = None
-
-        outputs = []
-        weights = []
-
-        for t in range(embeddings.size(1)):
-            input = torch.cat([embeddings[:, t, :], context], 1)
-            hidden = self.rnn(input, hidden)
-            context, weight = self.attention(hidden, features, features_mask)
-            input = torch.cat([hidden, context], 1)
-            outputs.append(input)
-            weights.append(weight)
-
-        outputs = torch.stack(outputs, 1)
-        weights = torch.stack(weights, 2)
-
-        outputs = self.output(outputs)
-
-        return outputs, weights
-
-
-class MultilayerAttentionIterativeDecoder(nn.Module):
-    def __init__(self, features, vocab_size):
-        super().__init__()
-
-        self.embedding = nn.Embedding(vocab_size, features, padding_idx=0)
-        self.rnns = nn.ModuleList([
-            AttentionWrapper(
-                nn.GRUCell(features * 2, features),
-                attention.QKVDotProductAttention(features)),
-        ])
-        self.output = nn.Sequential(
-            nn.Linear(features * 2, vocab_size))
-
-    def forward(self, input, features, features_mask):
-        embeddings = self.embedding(input)
-        context = torch.zeros(embeddings.size(0), embeddings.size(2)).to(embeddings.device)
-        hidden = [None] * len(self.rnns)
-
-        outputs = []
-        weights = []
-
-        for t in range(embeddings.size(1)):
-            weight = [None] * len(self.rnns)
-
-            input = torch.cat([embeddings[:, t, :], context], 1)
-
-            for i, rnn in enumerate(self.rnns):
-                hidden[i], context, weight[i] = rnn(input, hidden[i], features, features_mask)
-                input = torch.cat([hidden[i], context], 1)
-
-            weight = torch.cat(weight, 1)
-
-            outputs.append(input)
-            weights.append(weight)
-
-        outputs = torch.stack(outputs, 1)
-        weights = torch.stack(weights, 2)
-
-        outputs = self.output(outputs)
-
-        return outputs, weights
-
-
-class AttentionDecoderV3(nn.Module):
+class AttentionRNNDecoder(nn.Module):
     def __init__(self, features, vocab_size):
         super().__init__()
 
@@ -153,31 +62,25 @@ class AttentionDecoderV3(nn.Module):
         self.output = nn.Sequential(
             nn.Linear(features, vocab_size))
 
-    def forward(self, inputs, features, features_mask):
+    def forward(self, inputs, features, features_mask, hidden=None):
         inputs = self.embedding(inputs)
         inputs = self.dropout(inputs)
-        inputs, _ = self.rnn(inputs)
+        inputs, hidden = self.rnn(inputs, hidden)
         context, weights = self.attention(inputs, features, features_mask)
         inputs = inputs + self.dropout(context)
         inputs = self.output(inputs)
 
-        return inputs, weights
+        return inputs, weights, hidden
 
-    def infer(self, features, features_mask, sos_id, eos_id, max_steps):
-        inputs = torch.full((features.size(0), 1), sos_id, dtype=torch.long)
-        hidden = None
-        finished = torch.zeros((features.size(0), 1), dtype=torch.uint8)
+    def infer(self, features, features_mask, sos_id, eos_id, max_steps, hidden=None):
+        inputs = torch.full((features.size(0), 1), sos_id, dtype=torch.long, device=features.device)
+        finished = torch.zeros((features.size(0), 1), dtype=torch.bool, device=features.device)
 
         all_weights = []
         all_logits = []
 
         for t in range(max_steps):
-            inputs = self.embedding(inputs)
-            inputs = self.dropout(inputs)
-            inputs, hidden = self.rnn(inputs, hidden)
-            context, weights = self.attention(inputs, features, features_mask)
-            inputs = inputs + self.dropout(context)
-            logits = self.output(inputs)
+            logits, weights, hidden = self(inputs, features, features_mask, hidden)
             inputs = logits.argmax(2)
 
             all_logits.append(logits)
@@ -186,11 +89,104 @@ class AttentionDecoderV3(nn.Module):
             finished = finished | (inputs == eos_id)
             if torch.all(finished):
                 break
-               
+
         all_logits = torch.cat(all_logits, 1)
         all_weights = torch.cat(all_weights, 2)
 
-        return all_logits, all_weights
+        return all_logits, all_weights, hidden
+
+    # def infer(self, features, features_mask, sos_id, eos_id, max_steps, beam_size=5, hidden=None):
+    #     def expand(input, axis):
+    #         input = input.unsqueeze(axis)
+    #
+    #         repeats = [1] * input.dim()
+    #         repeats[axis] = beam_size
+    #         input = input.repeat(repeats)
+    #
+    #         return input
+    #
+    #     def flatten(input, axis):
+    #         shape = list(input.size())
+    #         new_shape = shape[:axis] + [shape[axis] * shape[axis + 1]] + shape[axis + 2:]
+    #         input = input.view(new_shape)
+    #
+    #         return input
+    #
+    #     def unflatten(input, axis):
+    #         shape = list(input.size())
+    #         new_shape = shape[:axis] + [shape[axis] // beam_size, beam_size] + shape[axis + 1:]
+    #         input = input.view(new_shape)
+    #
+    #         return input
+    #
+    #     inputs = torch.full((features.size(0), 1), sos_id, dtype=torch.long, device=features.device)
+    #     # finished = torch.zeros((features.size(0), 1), dtype=torch.bool, device=features.device)
+    #     scores = torch.zeros((features.size(0), 1), dtype=torch.float, device=features.device)
+    #
+    #     inputs = expand(inputs, 1)
+    #     features = expand(features, 1)
+    #     features_mask = expand(features_mask, 1)
+    #     scores = expand(scores, 1)
+    #
+    #     features = flatten(features, 0)
+    #     features_mask = flatten(features_mask, 0)
+    #
+    #     all_weights = []
+    #     all_logits = []
+    #
+    #     for t in range(max_steps):
+    #         # print('>' * 30)
+    #         # print(inputs.shape)
+    #         inputs = flatten(inputs, 0)
+    #         if hidden is not None:
+    #             hidden = flatten(hidden, 0)
+    #             hidden = hidden.unsqueeze(0)
+    #         # print(inputs.shape, features.shape, features_mask.shape)
+    #
+    #         logits, weights, hidden = self(inputs, features, features_mask, hidden)
+    #         hidden = hidden.squeeze(0)
+    #
+    #         logits = unflatten(logits, 0)
+    #         weights = unflatten(weights, 0)
+    #         hidden = unflatten(hidden, 0)
+    #         # print(logits.shape, weights.shape, hidden.shape)
+    #
+    #         # print('scores', scores.shape)
+    #         scores = scores.unsqueeze(2) + logits.transpose(2, 3).log_softmax(2)
+    #
+    #         logits = logits.unsqueeze(2).repeat(1, 1, scores.size(2), 1, 1)
+    #         weights = weights.unsqueeze(2).repeat(1, 1, scores.size(2), 1, 1, 1)
+    #         hidden = hidden.unsqueeze(2).repeat(1, 1, scores.size(2), 1)
+    #         # print(logits.shape, weights.shape, hidden.shape)
+    #
+    #         logits = flatten(logits, 1)
+    #         weights = flatten(weights, 1)
+    #         hidden = flatten(hidden, 1)
+    #         scores = flatten(scores, 1)
+    #         # print(logits.shape, weights.shape, hidden.shape)
+    #
+    #         scores, inputs = scores.topk(beam_size, 1)
+    #         # print('scores', scores.shape)
+    #         # fail
+    #
+    #         logits = logits.gather(1, inputs.unsqueeze(3).repeat(1, 1, 1, logits.size(3)))
+    #         weights = weights.gather(1, inputs.unsqueeze(3).unsqueeze(4).repeat(1, 1, 1, 1, weights.size(4)))
+    #         hidden = hidden.gather(1, inputs.repeat(1, 1, hidden.size(2)))
+    #
+    #         all_logits.append(logits)
+    #         all_weights.append(weights)
+    #
+    #         # print(logits.shape, weights.shape, hidden.shape)
+    #         if t >= 2:
+    #             break
+    #
+    #     all_logits = torch.cat(all_logits, 2)
+    #     all_weights = torch.cat(all_weights, 3)
+    #
+    #     print(all_logits.shape, all_weights.shape)
+    #     fail
+    #
+    #     return all_logits, all_weights, hidden
 
 
 class Model(nn.Module):
@@ -199,7 +195,7 @@ class Model(nn.Module):
 
         self.spectra = modules.Spectrogram(sample_rate)
         self.encoder = Conv2dRNNEncoder(in_features=128, out_features=256, num_conv_layers=5, num_rnn_layers=1)
-        self.decoder = AttentionDecoderV3(features=256, vocab_size=vocab_size)
+        self.decoder = AttentionRNNDecoder(features=256, vocab_size=vocab_size)
 
         for m in itertools.chain(
                 self.encoder.modules(),
@@ -220,7 +216,7 @@ class Model(nn.Module):
         features_mask = sigs_mask[:, ::math.floor(r)]
         features_mask = features_mask[:, :features.size(1)]
 
-        logits, weights = self.decoder(seqs, features, features_mask)
+        logits, weights, _ = self.decoder(seqs, features, features_mask)
 
         etc = {
             'spectras': spectras[:32],
@@ -229,16 +225,15 @@ class Model(nn.Module):
 
         return logits, etc
 
-    def infer(self, sigs, sigs_mask, sos_id, eos_id, max_steps):
-        # spectras = self.spectra(sigs)
-        spectras = torch.empty(sigs.size(0), 1, 128, 1024).normal_()
+    def infer(self, sigs, sigs_mask, **kwargs):
+        spectras = self.spectra(sigs)
         features = self.encoder(spectras)
 
         r = sigs.size(1) / features.size(1)
         features_mask = sigs_mask[:, ::math.floor(r)]
         features_mask = features_mask[:, :features.size(1)]
 
-        logits, weights = self.decoder.infer(features, features_mask, sos_id, eos_id, max_steps)
+        logits, weights, _ = self.decoder.infer(features, features_mask, **kwargs)
 
         etc = {
             'spectras': spectras[:32],
