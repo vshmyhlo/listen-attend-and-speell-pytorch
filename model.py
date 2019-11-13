@@ -55,7 +55,11 @@ class Conv2dRNNEncoder(nn.Module):
         input = input.permute(0, 2, 1)
         input, _ = self.rnn(input)
 
-        return input
+        etc = {
+            'weights': [],
+        }
+
+        return input, etc
 
 
 class Conv2dAttentionEncoder(nn.Module):
@@ -74,7 +78,7 @@ class Conv2dAttentionEncoder(nn.Module):
         input, weights = self.attention(input, self.encoding(input), input_mask)
 
         etc = {
-            'weights': weights
+            'weights': [weights],
         }
 
         return input, etc
@@ -99,7 +103,11 @@ class AttentionRNNDecoder(nn.Module):
         inputs = inputs + self.dropout(context)
         inputs = self.output(inputs)
 
-        return inputs, weights, hidden
+        etc = {
+            'weights': [weights],
+        }
+
+        return inputs, hidden, etc
 
     def infer(self, features, features_mask, sos_id, eos_id, max_steps, hidden=None):
         inputs = torch.full((features.size(0), 1), sos_id, dtype=torch.long, device=features.device)
@@ -109,11 +117,11 @@ class AttentionRNNDecoder(nn.Module):
         all_logits = []
 
         for t in range(max_steps):
-            logits, weights, hidden = self(inputs, features, features_mask, hidden)
+            logits, hidden, etc = self(inputs, features, features_mask, hidden)
             inputs = logits.argmax(2)
 
             all_logits.append(logits)
-            all_weights.append(weights)
+            all_weights.append(etc['weights'][0])  # TODO: fixme
 
             finished = finished | (inputs == eos_id)
             if torch.all(finished):
@@ -122,7 +130,11 @@ class AttentionRNNDecoder(nn.Module):
         all_logits = torch.cat(all_logits, 1)
         all_weights = torch.cat(all_weights, 2)
 
-        return all_logits, all_weights, hidden
+        etc = {
+            'weights': [all_weights],
+        }
+
+        return all_logits, hidden, etc
 
 
 class Model(nn.Module):
@@ -131,6 +143,7 @@ class Model(nn.Module):
 
         self.spectra = modules.Spectrogram(sample_rate)
         self.encoder = Conv2dRNNEncoder(in_features=128, out_features=256, num_conv_layers=5, num_rnn_layers=1)
+        # self.encoder = Conv2dAttentionEncoder(in_features=128, out_features=256, num_conv_layers=5)
         self.decoder = AttentionRNNDecoder(features=256, vocab_size=vocab_size)
 
         for m in itertools.chain(
@@ -147,14 +160,17 @@ class Model(nn.Module):
     def forward(self, sigs, sigs_mask, seqs):
         spectras = self.spectra(sigs)
         spectras_mask = modules.downsample_mask(sigs_mask, spectras.size(3))
-        features = self.encoder(spectras, spectras_mask)
+        features, encoder_etc = self.encoder(spectras, spectras_mask)
         features_mask = modules.downsample_mask(spectras_mask, features.size(1))
 
-        logits, weights, _ = self.decoder(seqs, features, features_mask)
+        logits, _, decoder_etc = self.decoder(seqs, features, features_mask)
 
         etc = {
             'spectras': spectras[:32],
-            'weights': weights[:32],
+            'weights': {
+                'encoder': encoder_etc['weights'],
+                'decoder': decoder_etc['weights'],
+            }
         }
 
         return logits, etc
@@ -162,14 +178,17 @@ class Model(nn.Module):
     def infer(self, sigs, sigs_mask, **kwargs):
         spectras = self.spectra(sigs)
         spectras_mask = modules.downsample_mask(sigs_mask, spectras.size(3))
-        features = self.encoder(spectras, spectras_mask)
+        features, encoder_etc = self.encoder(spectras, spectras_mask)
         features_mask = modules.downsample_mask(spectras_mask, features.size(1))
 
-        logits, weights, _ = self.decoder.infer(features, features_mask, **kwargs)
+        logits, _, decoder_etc = self.decoder.infer(features, features_mask, **kwargs)
 
         etc = {
             'spectras': spectras[:32],
-            'weights': weights[:32],
+            'weights': {
+                'encoder': encoder_etc['weights'],
+                'decoder': decoder_etc['weights'],
+            }
         }
 
         return logits, etc
