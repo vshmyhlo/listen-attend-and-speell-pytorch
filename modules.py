@@ -7,7 +7,7 @@ import torch.nn.functional as F
 class PositionalEncoding(nn.Module):
     def forward(self, input):
         _, t, c = input.size()
-       
+
         pos = torch.arange(t, dtype=input.dtype, device=input.device).unsqueeze(1)
         i = torch.arange(c, dtype=input.dtype, device=input.device).unsqueeze(0)
         enc = pos / 10000**(2 * i / c)
@@ -145,3 +145,14 @@ def filters_to_tensor(filters):
     filters = torch.tensor(filters).float()
 
     return filters
+
+
+def downsample_mask(input, size):
+    assert input.dim() == 2
+    assert input.dtype == torch.bool
+
+    input = input.unsqueeze(1).float()
+    input = F.interpolate(input, size=size, mode='nearest')
+    input = input.squeeze(1).bool()
+
+    return input
