@@ -1,5 +1,4 @@
 import argparse
-import itertools
 import logging
 import math
 import os
@@ -28,6 +27,7 @@ from transforms import LoadSignal, ApplyTo, Extract, VocabEncode, ToTensor
 from utils import take_until_token
 from vocab import SubWordVocab, CHAR_VOCAB, CharVocab, WordVocab
 
+
 # TODO: positional encoding and NO rnn (transformer-style)
 # TODO: Minimum Word Error Rate (MWER) Training
 # TODO: iterative inference
@@ -46,9 +46,6 @@ from vocab import SubWordVocab, CHAR_VOCAB, CharVocab, WordVocab
 # TODO: better loss averaging
 # TODO: beam search
 # TODO: loss = F.cross_entropy(pred, gold, ignore_index=Constants.PAD, reduction='sum')
-
-
-N = 1000
 
 
 def draw_attention(weights):
@@ -209,10 +206,8 @@ def main():
         optimizer = torch.optim.SGD(model.parameters(), config.opt.lr, momentum=0.9, weight_decay=1e-4)
     else:
         raise AssertionError('invalid config.opt.type {}'.format(config.opt.type))
-    # optimizer = LA(optimizer, lr=0.5, num_steps=5)
 
-    # scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', factor=0.5, patience=args.sched)
-    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, N * config.epochs)
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, len(train_data_loader) * config.epochs)
 
     # main loop
     train_writer = SummaryWriter(os.path.join(args.experiment_path, 'train'))
@@ -232,7 +227,8 @@ def main():
         model.train()
         t1 = time.time()
         for (sigs, labels), (sigs_mask, labels_mask) in tqdm(
-                itertools.islice(train_data_loader, N), total=N, desc='epoch {} training'.format(epoch),
+                train_data_loader,
+                desc='epoch {} training'.format(epoch),
                 smoothing=0.01):
             sigs, labels = sigs.to(device), labels.to(device)
             sigs_mask, labels_mask = sigs_mask.to(device), labels_mask.to(device)
@@ -324,12 +320,9 @@ def main():
                     global_step=epoch)
 
         save_model(model_to_save, args.experiment_path)
-        # utils.save_model(model_to_save, utils.mkdir(os.path.join(experiment_path, 'epoch_{}'.format(epoch))))
         if metrics['wer'] < best_wer:
             best_wer = metrics['wer']
             save_model(model_to_save, mkdir(os.path.join(args.experiment_path, 'best')))
-
-        # scheduler.step(eval_loss)
 
 
 if __name__ == '__main__':
