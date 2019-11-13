@@ -1,5 +1,4 @@
 import itertools
-import math
 
 import torch
 import torch.distributions
@@ -51,7 +50,7 @@ class Conv2dRNNEncoder(nn.Module):
         self.rnn = nn.GRU(
             out_features, out_features // 2, num_layers=num_rnn_layers, batch_first=True, bidirectional=True)
 
-    def forward(self, input):
+    def forward(self, input, input_mask):
         input = self.conv(input)
         input = input.permute(0, 2, 1)
         input, _ = self.rnn(input)
@@ -69,9 +68,9 @@ class Conv2dAttentionEncoder(nn.Module):
 
     def forward(self, input, input_mask):
         input = self.conv(input)
+        input_mask = modules.downsample_mask(input_mask, input.size(2))
         input = input.permute(0, 2, 1)
 
-        input_mask = modules.downsample_mask(input_mask, input.size(1))
         input, weights = self.attention(input, self.encoding(input), input_mask)
 
         etc = {
@@ -147,11 +146,9 @@ class Model(nn.Module):
 
     def forward(self, sigs, sigs_mask, seqs):
         spectras = self.spectra(sigs)
-        features = self.encoder(spectras)
-
-        r = sigs.size(1) / features.size(1)
-        features_mask = sigs_mask[:, ::math.floor(r)]
-        features_mask = features_mask[:, :features.size(1)]
+        spectras_mask = modules.downsample_mask(sigs_mask, spectras.size(3))
+        features = self.encoder(spectras, spectras_mask)
+        features_mask = modules.downsample_mask(spectras_mask, features.size(1))
 
         logits, weights, _ = self.decoder(seqs, features, features_mask)
 
@@ -164,12 +161,9 @@ class Model(nn.Module):
 
     def infer(self, sigs, sigs_mask, **kwargs):
         spectras = self.spectra(sigs)
-        features = self.encoder(spectras)
-
-        # TODO: use helper
-        r = sigs.size(1) / features.size(1)
-        features_mask = sigs_mask[:, ::math.floor(r)]
-        features_mask = features_mask[:, :features.size(1)]
+        spectras_mask = modules.downsample_mask(sigs_mask, spectras.size(3))
+        features = self.encoder(spectras, spectras_mask)
+        features_mask = modules.downsample_mask(spectras_mask, features.size(1))
 
         logits, weights, _ = self.decoder.infer(features, features_mask, **kwargs)
 
