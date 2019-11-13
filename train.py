@@ -28,11 +28,11 @@ from utils import take_until_token
 from vocab import SubWordVocab, CHAR_VOCAB, CharVocab, WordVocab
 
 
+# TODO: relative positional encoding
 # TODO: positional encoding and NO rnn (transformer-style)
 # TODO: Minimum Word Error Rate (MWER) Training
 # TODO: iterative inference
 # TODO: Scheduled Sampling
-# TODO: sgd
 # TODO: better tokenization for word level model
 # TODO: positional encoding
 # TODO: layer norm
