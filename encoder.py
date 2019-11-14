@@ -62,16 +62,21 @@ class Conv2dAttentionEncoder(nn.Module):
     def __init__(self, in_features, out_features, num_conv_layers):
         super().__init__()
 
-        self.conv = Conv2dEncoder(in_features, out_features, num_conv_layers)
+        self.embedding = Conv2dEncoder(in_features, out_features, num_conv_layers)
         self.encoding = modules.PositionalEncoding()
-        self.attention = attention.QKVDotProductAttention(out_features)
+        self.dropout = nn.Dropout(0.1)
+        self.self_attention = attention.QKVDotProductAttention(out_features)
 
     def forward(self, input, input_mask):
-        input = self.conv(input)
+        input = self.embedding(input)
         input_mask = modules.downsample_mask(input_mask, input.size(2))
         input = input.permute(0, 2, 1)
 
-        input, weights = self.attention(input, self.encoding(input), input_mask)
+        input = self.encoding(input)
+        input = self.dropout(input)
+
+        context, weights = self.self_attention(input, input, input_mask.unsqueeze(1))
+        input = input + self.dropout(context)
 
         etc = {
             'weights': [weights],

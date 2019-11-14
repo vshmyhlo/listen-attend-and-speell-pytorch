@@ -80,7 +80,7 @@ class QKVDotProductAttention(nn.Module):
         if self.scale is not None:
             scores = scores * self.scale
         if features_mask is not None:
-            scores.masked_fill_(~features_mask.unsqueeze(1), float('-inf'))
+            scores = apply_attention_mask(scores, features_mask)
 
         values = values.unsqueeze(1)
         scores = scores.unsqueeze(3)
@@ -117,7 +117,7 @@ class DotProductAttention(nn.Module):
         if self.scale is not None:
             scores = self.scale(scores)
         if features_mask is not None:
-            scores.masked_fill_(features_mask.unsqueeze(-1) == 0, float('-inf'))
+            scores = apply_attention_mask(scores, features_mask)
 
         weights = scores.softmax(1)
         context = (values * weights).sum(1)
@@ -154,9 +154,22 @@ class AdditiveAttention(nn.Module):
             scores = self.project(self.tanh(query + keys + self.bias))
         else:
             scores = self.project(self.tanh(query + keys))
-        scores.masked_fill_(features_mask.unsqueeze(-1) == 0, float('-inf'))
+        scores = apply_attention_mask(scores, features_mask)
 
         weights = scores.softmax(1)
         context = (values * weights).sum(1)
 
         return context, weights
+
+
+def apply_attention_mask(input, mask):
+    assert input.dim() == mask.dim(), \
+        'invalid mask shape {} for input of shape {}'.format(tuple(mask.size()), tuple(input.size()))
+    return input.masked_fill_(~mask, float('-inf'))
+
+
+def build_subseq_attention_mask(size, device):
+    shape = (1, size, size)
+    subseq_attention_mask = torch.tril(torch.ones(shape, device=device, dtype=torch.bool))
+
+    return subseq_attention_mask
