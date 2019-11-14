@@ -46,6 +46,13 @@ from vocab import SubWordVocab, CHAR_VOCAB, CharVocab, WordVocab
 # TODO: loss = F.cross_entropy(pred, gold, ignore_index=Constants.PAD, reduction='sum')
 
 
+def iterate_weights(weight_dict):
+    for k in weight_dict:
+        weights = weight_dict[k]
+        for i in range(weights.size(1)):
+            yield k, i, weights[:, i:i + 1]
+
+
 def draw_attention(weights):
     color = np.random.RandomState(42).uniform(0.5, 1, size=(1, weights.size(1), 3, 1, 1))
     color = torch.tensor(color, dtype=weights.dtype, device=weights.device)
@@ -260,13 +267,11 @@ def main():
                 'spectras',
                 torchvision.utils.make_grid(etc['spectras'], nrow=compute_nrow(etc['spectras']), normalize=True),
                 global_step=epoch)
-            for k in etc['weights']:
-                weights = etc['weights'][k]
-                for i in range(weights.size(1)):
-                    train_writer.add_image(
-                        'weights/{}/{}'.format(k, i),
-                        torchvision.utils.make_grid(weights[:, i:i + 1], nrow=compute_nrow(weights), normalize=True),
-                        global_step=epoch)
+            for k, i, w in iterate_weights(etc['weights']):
+                train_writer.add_image(
+                    'weights/{}/{}'.format(k, i),
+                    torchvision.utils.make_grid(w, nrow=compute_nrow(w), normalize=True),
+                    global_step=epoch)
 
             for i, (true, pred) in enumerate(zip(
                     labels[:, 1:][:4].detach().data.cpu().numpy(),
@@ -312,13 +317,11 @@ def main():
                 'spectras',
                 torchvision.utils.make_grid(etc['spectras'], nrow=compute_nrow(etc['spectras']), normalize=True),
                 global_step=epoch)
-            for k in etc['weights']:
-                weights = etc['weights'][k]
-                for i in range(weights.size(1)):
-                    eval_writer.add_image(
-                        'weights/{}/{}'.format(k, i),
-                        torchvision.utils.make_grid(weights[:, i:i + 1], nrow=compute_nrow(weights), normalize=True),
-                        global_step=epoch)
+            for k, i, w in iterate_weights(etc['weights']):
+                eval_writer.add_image(
+                    'weights/{}/{}'.format(k, i),
+                    torchvision.utils.make_grid(w, nrow=compute_nrow(w), normalize=True),
+                    global_step=epoch)
 
         save_model(model_to_save, args.experiment_path)
         if metrics['wer'] < best_wer:
