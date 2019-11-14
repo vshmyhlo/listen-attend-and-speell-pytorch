@@ -233,7 +233,7 @@ def main():
             sigs, labels = sigs.to(device), labels.to(device)
             sigs_mask, labels_mask = sigs_mask.to(device), labels_mask.to(device)
 
-            logits, etc = model(sigs, sigs_mask, labels[:, :-1])
+            logits, etc = model(sigs, labels[:, :-1], sigs_mask, labels_mask[:, :-1])
 
             loss = compute_loss(
                 input=logits, target=labels[:, 1:], mask=labels_mask[:, 1:], smoothing=config.label_smoothing)

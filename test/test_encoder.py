@@ -11,5 +11,5 @@ def test_conv2d_attention_encoder():
         output, etc = model(input, input_mask)
         assert output.size() == (1, 8, 32)
         assert len(etc['weights']) == 1
-        for t in etc['weights']:
-            assert t.size() == (1, 1, 8, 8)
+        assert etc['weights']['self'].size() == (1, 1, 8, 8)
+       

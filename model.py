@@ -2,9 +2,9 @@ import itertools
 
 import torch.nn as nn
 
+import decoder
+import encoder
 import modules
-from decoder import AttentionRNNDecoder
-from encoder import Conv2dRNNEncoder
 
 
 class Model(nn.Module):
@@ -13,10 +13,10 @@ class Model(nn.Module):
 
         self.spectra = modules.Spectrogram(sample_rate)
 
-        self.encoder = Conv2dRNNEncoder(in_features=128, out_features=256, num_conv_layers=5, num_rnn_layers=1)
-        # self.encoder = Conv2dAttentionEncoder(in_features=128, out_features=256, num_conv_layers=5)
-
-        self.decoder = AttentionRNNDecoder(features=256, vocab_size=vocab_size)
+        # self.encoder = Conv2dRNNEncoder(in_features=128, out_features=256, num_conv_layers=5, num_rnn_layers=1)
+        self.encoder = encoder.Conv2dAttentionEncoder(in_features=128, out_features=256, num_conv_layers=5)
+        # self.decoder = decoder.AttentionRNNDecoder(features=256, vocab_size=vocab_size)
+        self.decoder = decoder.AttentionDecoder(features=256, vocab_size=vocab_size)
 
         for m in itertools.chain(
                 self.encoder.modules(),
@@ -29,19 +29,19 @@ class Model(nn.Module):
                 nn.init.ones_(m.weight)
                 nn.init.zeros_(m.bias)
 
-    def forward(self, sigs, sigs_mask, seqs):
+    def forward(self, sigs, seqs, sigs_mask, seqs_mask):
         spectras = self.spectra(sigs)
         spectras_mask = modules.downsample_mask(sigs_mask, spectras.size(3))
         features, encoder_etc = self.encoder(spectras, spectras_mask)
         features_mask = modules.downsample_mask(spectras_mask, features.size(1))
 
-        logits, _, decoder_etc = self.decoder(seqs, features, features_mask)
+        logits, _, decoder_etc = self.decoder(seqs, features, seqs_mask, features_mask)
 
         etc = {
             'spectras': spectras[:32],
             'weights': {
-                'encoder': encoder_etc['weights'],
-                'decoder': decoder_etc['weights'],
+                **{'encoder/{}'.format(k): encoder_etc['weights'][k] for k in encoder_etc['weights']},
+                **{'decoder/{}'.format(k): decoder_etc['weights'][k] for k in decoder_etc['weights']},
             }
         }
 
@@ -58,8 +58,8 @@ class Model(nn.Module):
         etc = {
             'spectras': spectras[:32],
             'weights': {
-                'encoder': encoder_etc['weights'],
-                'decoder': decoder_etc['weights'],
+                **{'encoder/{}'.format(k): encoder_etc['weights'][k] for k in encoder_etc['weights']},
+                **{'decoder/{}'.format(k): decoder_etc['weights'][k] for k in decoder_etc['weights']},
             }
         }
 

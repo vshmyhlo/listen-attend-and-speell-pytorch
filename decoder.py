@@ -16,7 +16,7 @@ class AttentionRNNDecoder(nn.Module):
         self.output = nn.Sequential(
             nn.Linear(features, vocab_size))
 
-    def forward(self, inputs, features, features_mask, hidden=None):
+    def forward(self, inputs, features, input_mask, features_mask, hidden=None):
         inputs = self.embedding(inputs)
         inputs = self.dropout(inputs)
         inputs, hidden = self.rnn(inputs, hidden)
@@ -25,7 +25,9 @@ class AttentionRNNDecoder(nn.Module):
         inputs = self.output(inputs)
 
         etc = {
-            'weights': [weights],
+            'weights': {
+                'enc': weights,
+            }
         }
 
         return inputs, hidden, etc
@@ -42,7 +44,7 @@ class AttentionRNNDecoder(nn.Module):
             inputs = logits.argmax(2)
 
             all_logits.append(logits)
-            all_weights.append(etc['weights'][0])  # TODO: fixme
+            all_weights.append(etc['weights']['enc'])
 
             finished = finished | (inputs == eos_id)
             if torch.all(finished):
@@ -52,7 +54,9 @@ class AttentionRNNDecoder(nn.Module):
         all_weights = torch.cat(all_weights, 2)
 
         etc = {
-            'weights': [all_weights],
+            'weights': {
+                'enc': all_weights,
+            },
         }
 
         return all_logits, hidden, etc
@@ -76,16 +80,19 @@ class AttentionDecoder(nn.Module):
         input = self.dropout(input)
 
         subseq_attention_mask = attention.build_subseq_attention_mask(input.size(1), input.device)
-        context, weights = self.self_attention(input, input, input_mask.unsqueeze(1) & subseq_attention_mask)
+        context, self_weights = self.self_attention(input, input, input_mask.unsqueeze(1) & subseq_attention_mask)
         input = input + self.dropout(context)
 
-        context, weights = self.attention(input, features, features_mask.unsqueeze(1))
+        context, enc_weights = self.attention(input, features, features_mask.unsqueeze(1))
         input = input + self.dropout(context)
 
         input = self.output(input)
 
         etc = {
-            'weights': [weights],
+            'weights': {
+                'self': self_weights,
+                'enc': enc_weights
+            },
         }
 
         return input, hidden, etc

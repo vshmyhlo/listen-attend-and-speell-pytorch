@@ -52,7 +52,7 @@ class Conv2dRNNEncoder(nn.Module):
         input, _ = self.rnn(input)
 
         etc = {
-            'weights': [],
+            'weights': {}
         }
 
         return input, etc
@@ -79,7 +79,9 @@ class Conv2dAttentionEncoder(nn.Module):
         input = input + self.dropout(context)
 
         etc = {
-            'weights': [weights],
+            'weights': {
+                'self': weights,
+            }
         }
 
         return input, etc
