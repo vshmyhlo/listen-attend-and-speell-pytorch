@@ -260,12 +260,13 @@ def main():
                 'spectras',
                 torchvision.utils.make_grid(etc['spectras'], nrow=compute_nrow(etc['spectras']), normalize=True),
                 global_step=epoch)
-            for i in range(etc['weights'].size(1)):
-                train_writer.add_image(
-                    'weights/{}'.format(i),
-                    torchvision.utils.make_grid(
-                        etc['weights'][:, i:i + 1], nrow=compute_nrow(etc['weights']), normalize=True),
-                    global_step=epoch)
+            for k in etc['weights']:
+                weights = etc['weights'][k]
+                for i in range(weights.size(1)):
+                    train_writer.add_image(
+                        'weights/{}/{}'.format(k, i),
+                        torchvision.utils.make_grid(weights[:, i:i + 1], nrow=compute_nrow(weights), normalize=True),
+                        global_step=epoch)
 
             for i, (true, pred) in enumerate(zip(
                     labels[:, 1:][:4].detach().data.cpu().numpy(),
@@ -311,12 +312,13 @@ def main():
                 'spectras',
                 torchvision.utils.make_grid(etc['spectras'], nrow=compute_nrow(etc['spectras']), normalize=True),
                 global_step=epoch)
-            for i in range(etc['weights'].size(1)):
-                eval_writer.add_image(
-                    'weights/{}'.format(i),
-                    torchvision.utils.make_grid(
-                        etc['weights'][:, i:i + 1], nrow=compute_nrow(etc['weights']), normalize=True),
-                    global_step=epoch)
+            for k in etc['weights']:
+                weights = etc['weights'][k]
+                for i in range(weights.size(1)):
+                    eval_writer.add_image(
+                        'weights/{}/{}'.format(k, i),
+                        torchvision.utils.make_grid(weights[:, i:i + 1], nrow=compute_nrow(weights), normalize=True),
+                        global_step=epoch)
 
         save_model(model_to_save, args.experiment_path)
         if metrics['wer'] < best_wer:
