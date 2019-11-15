@@ -163,8 +163,13 @@ class AdditiveAttention(nn.Module):
 
 
 def apply_attention_mask(input, mask):
-    assert input.dim() == mask.dim(), \
-        'invalid mask shape {} for input of shape {}'.format(tuple(mask.size()), tuple(input.size()))
+    assert input.dim() == mask.dim() == 3
+    if mask.size(1) == 1:
+        for i in [0, 2]:
+            assert input.size(i) == mask.size(i)
+    else:
+        assert input.size() == mask.size()
+
     return input.masked_fill_(~mask, float('-inf'))
 
 

@@ -14,8 +14,9 @@ class Model(nn.Module):
         self.spectra = modules.Spectrogram(sample_rate)
 
         # self.encoder = Conv2dRNNEncoder(in_features=128, out_features=256, num_conv_layers=5, num_rnn_layers=1)
-        self.encoder = encoder.Conv2dAttentionEncoder(in_features=128, out_features=256, num_conv_layers=5)
         # self.decoder = decoder.AttentionRNNDecoder(features=256, vocab_size=vocab_size)
+       
+        self.encoder = encoder.Conv2dAttentionEncoder(in_features=128, out_features=256, num_conv_layers=5)
         self.decoder = decoder.AttentionDecoder(features=256, vocab_size=vocab_size)
 
         for m in itertools.chain(
