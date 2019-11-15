@@ -1,4 +1,5 @@
 import torch
+import torch.nn.functional as F
 from torch import nn as nn
 
 import attention
@@ -98,36 +99,54 @@ class AttentionDecoder(nn.Module):
 
         return input, hidden, etc
 
+    # TODO: check
     def infer(self, features, features_mask, sos_id, eos_id, max_steps, hidden=None):
         input = torch.full((features.size(0), 1), fill_value=sos_id, dtype=torch.long, device=features.device)
-        input_mask = torch.ones((features.size(0), 1), dtype=torch.bool, device=features.device)
+        self_features = None
+        self_features_mask = None
         finished = torch.zeros((features.size(0), 1), dtype=torch.bool, device=features.device)
 
-        all_weights = []
+        all_weights = {
+            'self': [],
+            'enc': [],
+        }
         all_logits = []
 
-        print('>' * 30)
         for t in range(max_steps):
-            print(input.shape)
-            logits, hidden, etc = self(input, features, input_mask, features_mask, hidden)
-            input = torch.cat([input, logits.argmax(2)], 1)
+            input = self.embedding(input)
+            input = self.encoding(input)
+            input = self.dropout(input)
+
+            if self_features is None:
+                self_features = input
+                self_features_mask = ~finished
+            else:
+                self_features = torch.cat([self_features, input], 1)
+                self_features_mask = torch.cat([self_features_mask, ~finished], 1)
+
+            context, self_weights = self.self_attention(input, self_features, self_features_mask.unsqueeze(1))
+            input = input + self.dropout(context)
+            all_weights['self'].append(self_weights)
+
+            context, enc_weights = self.attention(input, features, features_mask.unsqueeze(1))
+            input = input + self.dropout(context)
+            all_weights['enc'].append(enc_weights)
+
+            logits = self.output(input)
+            input = logits.argmax(2)
 
             all_logits.append(logits)
-            all_weights.append(etc['weights']['enc'])
-
-            print(finished.shape, input.shape)
 
             finished = finished | (input == eos_id)
             if torch.all(finished):
                 break
 
         all_logits = torch.cat(all_logits, 1)
-        all_weights = torch.cat(all_weights, 2)
+        all_weights['self'] = torch.cat([F.pad(w, (0, t + 1 - w.size(3))) for w in all_weights['self']], 2)
+        all_weights['enc'] = torch.cat(all_weights['enc'], 2)
 
         etc = {
-            'weights': {
-                'enc': all_weights,
-            },
+            'weights': all_weights,
         }
 
         return all_logits, hidden, etc
