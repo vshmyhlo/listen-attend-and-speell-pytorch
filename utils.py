@@ -1,10 +1,3 @@
-def take_until_token(seq, token):
-    if token in seq:
-        return seq[:seq.index(token)]
-    else:
-        return seq
-
-
 class MergeDict(dict):
     class Merge(object):
         def __init__(self, data):
@@ -16,25 +9,27 @@ class MergeDict(dict):
                     self.dict[k1] = {}
 
                 for k2 in other[k1]:
-                    self.dict[k1]['{}/{}'.format(name, k2)] = other[k1][k2]
+                    k_new = '{}/{}'.format(name, k2)
+                    assert k_new not in self.dict[k1]
+                    self.dict[k1][k_new] = other[k1][k2]
 
     @property
     def merge(self):
         return self.Merge(self)
-   
 
-class Etcetera(object):
-    def __init__(self, spectras=None, weights=None):
-        if weights is None:
-            weights = {}
 
-        self.spectras = spectras
-        self.weights = weights
+def take_until_token(seq, token):
+    if token in seq:
+        return seq[:seq.index(token)]
+    else:
+        return seq
 
-    def __setitem__(self, name, other):
-        assert other.spectras is None
 
-        self.weights = {
-            **self.weights,
-            **{'{}/{}'.format(name, k): other.weights[k] for k in other.weights}
-        }
+def label_smoothing(input, smoothing):
+    return input * (1 - smoothing) + smoothing / input.size(2)
+
+
+def one_hot(input, num_classes):
+    input = torch.eye(num_classes, dtype=torch.float, device=input.device)[input]
+
+    return input

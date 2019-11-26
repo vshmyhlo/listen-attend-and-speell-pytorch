@@ -24,7 +24,7 @@ from metrics import word_error_rate
 from model import Model
 from sampler import BatchSampler
 from transforms import LoadSignal, ApplyTo, Extract, VocabEncode, ToTensor
-from utils import take_until_token
+from utils import take_until_token, label_smoothing, one_hot
 from vocab import SubWordVocab, CHAR_VOCAB, CharVocab, WordVocab
 
 
@@ -44,13 +44,6 @@ from vocab import SubWordVocab, CHAR_VOCAB, CharVocab, WordVocab
 # TODO: better loss averaging
 # TODO: beam search
 # TODO: loss = F.cross_entropy(pred, gold, ignore_index=Constants.PAD, reduction='sum')
-
-
-def iterate_weights(weight_dict):
-    for k in weight_dict:
-        weights = weight_dict[k]
-        for i in range(weights.size(1)):
-            yield k, i, weights[:, i:i + 1]
 
 
 def draw_attention(weights):
@@ -110,12 +103,6 @@ def collate_fn(batch):
     return (sigs, syms), (sigs_mask, syms_mask)
 
 
-def one_hot(input, num_classes):
-    input = torch.eye(num_classes, dtype=torch.float, device=input.device)[input]
-
-    return input
-
-
 def softmax_cross_entropy(input, target, axis=1, keepdim=False):
     log_prob = input.log_softmax(axis)
     loss = -(target * log_prob).sum(axis, keepdim=keepdim)
@@ -125,7 +112,7 @@ def softmax_cross_entropy(input, target, axis=1, keepdim=False):
 
 def compute_loss(input, target, mask, smoothing):
     target = one_hot(target, input.size(2))
-    target = target * (1 - smoothing) + smoothing / input.size(2)
+    target = label_smoothing(target, smoothing)
 
     loss = softmax_cross_entropy(input=input, target=target, axis=2)
     loss = (loss * mask.float()).sum(1)
@@ -265,11 +252,12 @@ def main():
 
             train_writer.add_image(
                 'spectras',
-                torchvision.utils.make_grid(etc.spectras, nrow=compute_nrow(etc.spectras), normalize=True),
+                torchvision.utils.make_grid(etc['spectras'], nrow=compute_nrow(etc['spectras']), normalize=True),
                 global_step=epoch)
-            for k, i, w in iterate_weights(etc.weights):
+            for k in etc['weights']:
+                w = etc['weights'][k]
                 train_writer.add_image(
-                    'weights/{}/{}'.format(k, i),
+                    'weights/{}'.format(k),
                     torchvision.utils.make_grid(w, nrow=compute_nrow(w), normalize=True),
                     global_step=epoch)
 
@@ -315,11 +303,12 @@ def main():
 
             eval_writer.add_image(
                 'spectras',
-                torchvision.utils.make_grid(etc.spectras, nrow=compute_nrow(etc.spectras), normalize=True),
+                torchvision.utils.make_grid(etc['spectras'], nrow=compute_nrow(etc['spectras']), normalize=True),
                 global_step=epoch)
-            for k, i, w in iterate_weights(etc.weights):
+            for k in etc['weights']:
+                w = etc['weights'][k]
                 eval_writer.add_image(
-                    'weights/{}/{}'.format(k, i),
+                    'weights/{}'.format(k),
                     torchvision.utils.make_grid(w, nrow=compute_nrow(w), normalize=True),
                     global_step=epoch)
 
