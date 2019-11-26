@@ -1,10 +1,10 @@
-import argparse
 import logging
 import math
 import os
 import time
 from multiprocessing import Pool
 
+import click
 import numpy as np
 import pandas as pd
 import torch.nn as nn
@@ -28,22 +28,18 @@ from utils import take_until_token, label_smoothing, one_hot
 from vocab import SubWordVocab, CHAR_VOCAB, CharVocab, WordVocab
 
 
+# TODO: use decoder infer method for eval
 # TODO: relative positional encoding
-# TODO: positional encoding and NO rnn (transformer-style)
 # TODO: Minimum Word Error Rate (MWER) Training
-# TODO: iterative inference
 # TODO: Scheduled Sampling
 # TODO: better tokenization for word level model
-# TODO: positional encoding
 # TODO: layer norm
 # TODO: use import scipy.io.wavfile as wav
 # TODO: check targets are correct
-# TODO: pack sequence
 # TODO: per freq norm
 # TODO: norm spec 1d
 # TODO: better loss averaging
 # TODO: beam search
-# TODO: loss = F.cross_entropy(pred, gold, ignore_index=Constants.PAD, reduction='sum')
 
 
 def draw_attention(weights):
@@ -120,29 +116,23 @@ def compute_loss(input, target, mask, smoothing):
     return loss
 
 
-def build_parser():
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--experiment-path', type=str, default='./tf_log')
-    parser.add_argument('--dataset-path', type=str, default='./data')
-    parser.add_argument('--config-path', type=str, required=True)
-    parser.add_argument('--restore-path', type=str)
-    parser.add_argument('--workers', type=int, default=os.cpu_count())
-
-    return parser
-
-
-def main():
+@click.command()
+@click.option('--experiment-path', type=click.Path(), default='./tf_log')
+@click.option('--dataset-path', type=click.Path(), default='./data')
+@click.option('--config-path', type=click.Path(), required=True)
+@click.option('--restore-path', type=click.Path())
+@click.option('--workers', type=click.INT, default=os.cpu_count())
+def main(experiment_path, dataset_path, config_path, restore_path, workers):
     logging.basicConfig(level=logging.INFO)
-    args = build_parser().parse_args()
-    config = Config.from_json(args.config_path)
+    config = Config.from_json(config_path)
     fix_seed(config.seed)
 
     train_data = pd.concat([
-        load_data(os.path.join(args.dataset_path, 'train-clean-100'), workers=args.workers),
-        load_data(os.path.join(args.dataset_path, 'train-clean-360'), workers=args.workers),
+        load_data(os.path.join(dataset_path, 'train-clean-100'), workers=workers),
+        load_data(os.path.join(dataset_path, 'train-clean-360'), workers=workers),
     ])
     eval_data = pd.concat([
-        load_data(os.path.join(args.dataset_path, 'dev-clean'), workers=args.workers),
+        load_data(os.path.join(dataset_path, 'dev-clean'), workers=workers),
     ])
 
     if config.vocab == 'char':
@@ -174,13 +164,13 @@ def main():
     train_data_loader = torch.utils.data.DataLoader(
         train_dataset,
         batch_sampler=BatchSampler(train_data, batch_size=config.batch_size, shuffle=True, drop_last=True),
-        num_workers=args.workers,
+        num_workers=workers,
         collate_fn=collate_fn)
 
     eval_data_loader = torch.utils.data.DataLoader(
         eval_dataset,
         batch_sampler=BatchSampler(eval_data, batch_size=config.batch_size),
-        num_workers=args.workers,
+        num_workers=workers,
         collate_fn=collate_fn)
 
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -189,8 +179,8 @@ def main():
     if torch.cuda.device_count() > 1:
         model = nn.DataParallel(model)
     model.to(device)
-    if args.restore_path is not None:
-        load_weights(model_to_save, args.restore_path)
+    if restore_path is not None:
+        load_weights(model_to_save, restore_path)
 
     if config.opt.type == 'adam':
         optimizer = torch.optim.Adam(model.parameters(), config.opt.lr, weight_decay=1e-4)
@@ -201,16 +191,20 @@ def main():
 
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, len(train_data_loader) * config.epochs)
 
+    # ==================================================================================================================
     # main loop
-    train_writer = SummaryWriter(os.path.join(args.experiment_path, 'train'))
-    eval_writer = SummaryWriter(os.path.join(args.experiment_path, 'eval'))
+
+    train_writer = SummaryWriter(os.path.join(experiment_path, 'train'))
+    eval_writer = SummaryWriter(os.path.join(experiment_path, 'eval'))
     best_wer = float('inf')
 
     for epoch in range(config.epochs):
         if epoch % 10 == 0:
-            logging.info(args.experiment_path)
+            logging.info(experiment_path)
 
+        # ==============================================================================================================
         # training
+
         metrics = {
             'loss': Mean(),
             'fps': Mean(),
@@ -270,14 +264,16 @@ def main():
                 text = vocab.decode(take_until_token(pred.tolist(), vocab.eos_id))
                 print(colored(text, 'yellow'))
 
+        # ==============================================================================================================
         # evaluation
+
         metrics = {
             # 'loss': Mean(),
             'wer': Mean(),
         }
 
         model.eval()
-        with torch.no_grad(), Pool(args.workers) as pool:
+        with torch.no_grad(), Pool(workers) as pool:
             for (sigs, labels), (sigs_mask, labels_mask) in tqdm(
                     eval_data_loader, desc='epoch {} evaluating'.format(epoch), smoothing=0.1):
                 sigs, labels = sigs.to(device), labels.to(device)
@@ -312,10 +308,10 @@ def main():
                     torchvision.utils.make_grid(w, nrow=compute_nrow(w), normalize=True),
                     global_step=epoch)
 
-        save_model(model_to_save, args.experiment_path)
+        save_model(model_to_save, experiment_path)
         if metrics['wer'] < best_wer:
             best_wer = metrics['wer']
-            save_model(model_to_save, mkdir(os.path.join(args.experiment_path, 'best')))
+            save_model(model_to_save, mkdir(os.path.join(experiment_path, 'best')))
 
 
 if __name__ == '__main__':

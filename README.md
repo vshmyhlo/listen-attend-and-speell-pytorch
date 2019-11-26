@@ -1,9 +1,15 @@
-# Implementation of Automatic Speech Recognition inspired by [Listen, Attend and Spell](https://arxiv.org/abs/1508.01211) paper in [PyTorch](http://pytorch.org)
+# Implementation of Automatic Speech Recognition inspired by [Listen, Attend and Spell](https://arxiv.org/abs/1508.01211) and [Attention Is All You Need](https://arxiv.org/abs/1706.03762) papers in [PyTorch](http://pytorch.org)
 
-* Encoder-Decoder architecture with attention
-* Encoder is 2D Convolutional network over log-mel spectrogram followed by several GRU layers
-* Decoder is GRU Network with Luong style attention
 * Trained on LibriSpeech
+* Encoder-Decoder architecture with attention
+* Encoders:
+    * 2D Conv network over log-mel spectrogram
+    * Followed by several GRU layers
+    * Or followed by several self-attention layers
+    
+* Decoders:
+    * GRU layers with dot-product attention over encoder
+    * Self-attention layers with dot-product attention over encoder
 
 ### Example spectrograms
 ![Example spectrograms](./data/spectras.png)
