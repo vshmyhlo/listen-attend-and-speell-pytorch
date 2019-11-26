@@ -2,6 +2,7 @@ from torch import nn as nn
 
 import attention
 import modules
+from utils import MergeDict
 
 
 class Conv2dEncoder(nn.Module):
@@ -35,7 +36,7 @@ class Conv2dEncoder(nn.Module):
         input = self.project(input)
         input = input.squeeze(2)
 
-        return input
+        return input, MergeDict()
 
 
 class Conv2dRNNEncoder(nn.Module):
@@ -47,13 +48,11 @@ class Conv2dRNNEncoder(nn.Module):
             out_features, out_features // 2, num_layers=num_rnn_layers, batch_first=True, bidirectional=True)
 
     def forward(self, input, input_mask):
-        input = self.conv(input)
+        etc = MergeDict()
+
+        input, etc.merge['conv'] = self.conv(input)
         input = input.permute(0, 2, 1)
         input, _ = self.rnn(input)
-
-        etc = {
-            'weights': {}
-        }
 
         return input, etc
 
@@ -62,26 +61,22 @@ class Conv2dAttentionEncoder(nn.Module):
     def __init__(self, in_features, out_features, num_conv_layers):
         super().__init__()
 
-        self.embedding = Conv2dEncoder(in_features, out_features, num_conv_layers)
+        self.conv = Conv2dEncoder(in_features, out_features, num_conv_layers)
         self.encoding = modules.PositionalEncoding()
         self.dropout = nn.Dropout(0.1)
         self.self_attention = attention.QKVDotProductAttention(out_features)
 
     def forward(self, input, input_mask):
-        input = self.embedding(input)
+        etc = MergeDict(weights={})
+
+        input, etc.merge['conv'] = self.conv(input)
         input_mask = modules.downsample_mask(input_mask, input.size(2))
         input = input.permute(0, 2, 1)
 
         input = self.encoding(input)
         input = self.dropout(input)
 
-        context, weights = self.self_attention(input, input, input_mask.unsqueeze(1))
+        context, etc['weights']['self'] = self.self_attention(input, input, input_mask.unsqueeze(1))
         input = input + self.dropout(context)
-
-        etc = {
-            'weights': {
-                'self': weights,
-            }
-        }
 
         return input, etc

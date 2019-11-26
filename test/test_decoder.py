@@ -3,7 +3,7 @@ import torch
 from decoder import AttentionDecoder, AttentionRNNDecoder
 
 
-def test_attention_rnn__decoder():
+def test_attention_rnn_decoder():
     with torch.no_grad():
         b = 2
         model = AttentionRNNDecoder(8, 100)

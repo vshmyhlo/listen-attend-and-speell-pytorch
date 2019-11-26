@@ -265,9 +265,9 @@ def main():
 
             train_writer.add_image(
                 'spectras',
-                torchvision.utils.make_grid(etc['spectras'], nrow=compute_nrow(etc['spectras']), normalize=True),
+                torchvision.utils.make_grid(etc.spectras, nrow=compute_nrow(etc.spectras), normalize=True),
                 global_step=epoch)
-            for k, i, w in iterate_weights(etc['weights']):
+            for k, i, w in iterate_weights(etc.weights):
                 train_writer.add_image(
                     'weights/{}/{}'.format(k, i),
                     torchvision.utils.make_grid(w, nrow=compute_nrow(w), normalize=True),
@@ -315,9 +315,9 @@ def main():
 
             eval_writer.add_image(
                 'spectras',
-                torchvision.utils.make_grid(etc['spectras'], nrow=compute_nrow(etc['spectras']), normalize=True),
+                torchvision.utils.make_grid(etc.spectras, nrow=compute_nrow(etc.spectras), normalize=True),
                 global_step=epoch)
-            for k, i, w in iterate_weights(etc['weights']):
+            for k, i, w in iterate_weights(etc.weights):
                 eval_writer.add_image(
                     'weights/{}/{}'.format(k, i),
                     torchvision.utils.make_grid(w, nrow=compute_nrow(w), normalize=True),

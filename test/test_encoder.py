@@ -12,4 +12,3 @@ def test_conv2d_attention_encoder():
         assert output.size() == (1, 8, 32)
         assert len(etc['weights']) == 1
         assert etc['weights']['self'].size() == (1, 1, 8, 8)
-       

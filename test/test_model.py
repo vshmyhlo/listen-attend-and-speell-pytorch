@@ -19,3 +19,4 @@ def test_model():
         assert etc['weights']['encoder/self'].size() == (1, 1, 4, 4)
         assert etc['weights']['decoder/self'].size() == (1, 1, 10, 10)
         assert etc['weights']['decoder/enc'].size() == (1, 1, 10, 4)
+       
