@@ -165,8 +165,8 @@ class AdditiveAttention(nn.Module):
 def apply_attention_mask(input, mask):
     assert input.dim() == mask.dim() == 3
     if mask.size(1) == 1:
-        for i in [0, 2]:
-            assert input.size(i) == mask.size(i)
+        assert input.size(0) == mask.size(0)
+        assert input.size(2) == mask.size(2)
     else:
         assert input.size() == mask.size()
 

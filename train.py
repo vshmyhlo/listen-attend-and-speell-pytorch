@@ -34,7 +34,6 @@ from vocab import SubWordVocab, CHAR_VOCAB, CharVocab, WordVocab
 # TODO: Scheduled Sampling
 # TODO: better tokenization for word level model
 # TODO: layer norm
-# TODO: use import scipy.io.wavfile as wav
 # TODO: check targets are correct
 # TODO: per freq norm
 # TODO: norm spec 1d

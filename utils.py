@@ -1,3 +1,6 @@
+import torch
+
+
 class MergeDict(dict):
     class Merge(object):
         def __init__(self, data):
