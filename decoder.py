@@ -63,8 +63,7 @@ class AttentionDecoder(nn.Module):
         self.dropout = nn.Dropout(0.1)
         self.self_attention = attention.QKVDotProductAttention(features)
         self.attention = attention.QKVDotProductAttention(features)
-        self.output = nn.Sequential(
-            nn.Linear(features, vocab_size))
+        self.output = nn.Linear(features, vocab_size)
 
     def forward(self, input, features, input_mask, features_mask, hidden=None):
         etc = MergeDict(weights={})
@@ -85,10 +84,14 @@ class AttentionDecoder(nn.Module):
 
         return input, hidden, etc
 
-    def infer(self, features, features_mask, sos_id, eos_id, max_steps, hidden=None):
+    def infer(self, features, features_mask, sos_id, eos_id, max_steps, hidden=None, debug_input=None):
         etc = MergeDict(weights={'self': [], 'enc': []})
 
-        input = torch.full((features.size(0), 1), fill_value=sos_id, dtype=torch.long, device=features.device)
+        if debug_input is None:
+            input = torch.full((features.size(0), 1), fill_value=sos_id, dtype=torch.long, device=features.device)
+        else:
+            input = debug_input[:, :1]
+
         self_features = None
         self_features_mask = None
         finished = input == eos_id
@@ -96,7 +99,7 @@ class AttentionDecoder(nn.Module):
         all_logits = []
         for t in range(max_steps):
             input = self.embedding(input)
-            input = self.encoding(input)
+            input = self.encoding(input, t)
             input = self.dropout(input)
 
             if self_features is None:
@@ -115,7 +118,10 @@ class AttentionDecoder(nn.Module):
             input = input + self.dropout(context)
 
             logits = self.output(input)
-            input = logits.argmax(2)
+            if debug_input is None:
+                input = logits.argmax(2)
+            else:
+                input = debug_input[:, t + 1:t + 2]
 
             all_logits.append(logits)
 

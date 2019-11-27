@@ -5,10 +5,10 @@ import torch.nn.functional as F
 
 
 class PositionalEncoding(nn.Module):
-    def forward(self, input):
+    def forward(self, input, start=0):
         _, t, c = input.size()
 
-        pos = torch.arange(t, dtype=input.dtype, device=input.device).unsqueeze(1)
+        pos = start + torch.arange(t, dtype=input.dtype, device=input.device).unsqueeze(1)
         i = torch.arange(c, dtype=input.dtype, device=input.device).unsqueeze(0)
         enc = pos / 10000**(2 * i / c)
         enc = torch.cat([

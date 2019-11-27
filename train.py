@@ -278,9 +278,8 @@ def main(experiment_path, dataset_path, config_path, restore_path, workers):
                 sigs, labels = sigs.to(device), labels.to(device)
                 sigs_mask, labels_mask = sigs_mask.to(device), labels_mask.to(device)
 
-                logits, etc = model(sigs, labels[:, :-1], sigs_mask, labels_mask[:, :-1])
-                # logits, etc = model.infer(
-                #     sigs, sigs_mask, sos_id=vocab.sos_id, eos_id=vocab.eos_id, max_steps=labels.size(1) + 10)
+                logits, etc = model.infer(
+                    sigs, sigs_mask, sos_id=vocab.sos_id, eos_id=vocab.eos_id, max_steps=labels.size(1) + 10)
 
                 # loss = compute_loss(
                 #     input=logits, target=labels[:, 1:], mask=labels_mask[:, 1:], smoothing=config.label_smoothing)
