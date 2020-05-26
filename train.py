@@ -28,6 +28,7 @@ from utils import take_until_token, label_smoothing, one_hot
 from vocab import SubWordVocab, CHAR_VOCAB, CharVocab, WordVocab
 
 
+# TODO: not learnable attention scores scale
 # TODO: use decoder infer method for eval
 # TODO: relative positional encoding
 # TODO: Minimum Word Error Rate (MWER) Training
